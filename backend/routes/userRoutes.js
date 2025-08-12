@@ -5,24 +5,39 @@ const {
   createUser,
   updateUser,
   deleteUser,
-  getUserStats
-} = require('../controllers/userController');
-const { requireSuperAdmin } = require('../middleware/auth');
+  assignCSMToAccounts,
+  getCSMAssignments,
+  updateProfile
+} = require('../controllers/userController_enhanced');
+const { 
+  verifyToken, 
+  requireAdmin, 
+  requireAuthenticated, 
+  canManageUser,
+  sensitiveOperationLimit,
+  canManageAllCustomers
+} = require('../middleware/auth');
 
 const router = express.Router();
 
-// All user routes require superadmin access
-router.use(requireSuperAdmin);
+// Apply authentication to all routes
+router.use(verifyToken);
 
-router.route('/')
-  .get(getUsers)
-  .post(createUser);
+// Profile routes (any authenticated user)
+router.put('/profile', updateProfile);
 
-router.get('/stats', getUserStats);
+// User listing and creation (Admin/Superadmin only)
+router.get('/', requireAdmin, getUsers);
+router.post('/', requireAdmin, sensitiveOperationLimit, createUser);
 
+// CSM assignment routes (Admin/Superadmin only)
+router.post('/:id/assign-accounts', canManageAllCustomers, sensitiveOperationLimit, assignCSMToAccounts);
+router.get('/:id/assignments', requireAuthenticated, getCSMAssignments);
+
+// Individual user routes
 router.route('/:id')
-  .get(getUser)
-  .put(updateUser)
-  .delete(deleteUser);
+  .get(requireAuthenticated, getUser)
+  .put(requireAuthenticated, canManageUser, updateUser)
+  .delete(requireAdmin, sensitiveOperationLimit, deleteUser);
 
 module.exports = router;
