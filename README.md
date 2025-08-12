@@ -1,6 +1,88 @@
 # 🚀 Framtt Admin Dashboard
 
-A comprehensive superadmin dashboard for managing rental companies on the Framtt platform. Built with React 18, TypeScript, Tailwind CSS, and React Router for seamless navigation.
+A comprehensive superadmin dashboard for managing rental companies on the Framtt platform. Built with React 18, TypeScript, Tailwind CSS, and Express.js.
+
+## 📁 Project Structure
+
+```
+superadmin-framtt/
+├── frontend/                 # React TypeScript frontend
+│   ├── src/
+│   │   ├── components/       # React components
+│   │   ├── contexts/         # React context providers
+│   │   ├── lib/             # Utility libraries and types
+│   │   ├── styles/          # Global CSS styles
+│   │   ├── utils/           # Utility functions
+│   │   ├── App.tsx          # Main app component
+│   │   └── main.tsx         # App entry point
+│   ├── public/              # Static assets
+│   ├── package.json         # Frontend dependencies
+│   ├── vite.config.ts       # Vite configuration
+│   ├── tailwind.config.js   # Tailwind CSS config
+│   └── tsconfig.json        # TypeScript config
+├── backend/                  # Express.js backend
+│   ├── controllers/         # Route controllers
+│   ├── middleware/          # Express middleware
+│   ├── routes/             # API routes
+│   ├── data/               # Mock data and utilities
+│   ├── server.js           # Backend entry point
+│   └── package.json        # Backend dependencies
+├── database/                # Database schemas and migrations
+├── deployment/              # Docker and deployment configs
+│   ├── docker/             # Docker configurations
+│   ├── netlify.toml        # Netlify config
+│   ├── vercel.json         # Vercel config
+│   └── nginx.conf          # Nginx config
+├── docs/                    # Documentation
+│   ├── design-specs/       # Design specifications
+│   └── guidelines/         # Development guidelines
+├── scripts/                 # Utility scripts
+├── supabase/               # Supabase configurations
+└── package.json            # Root package.json for workspace
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ and npm
+- Git
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd superadmin-framtt
+```
+
+2. **Install all dependencies**
+```bash
+npm run install:all
+```
+
+3. **Start development servers**
+```bash
+npm run dev
+```
+
+This will start:
+- Frontend development server on `http://localhost:3000`
+- Backend development server on `http://localhost:5000`
+
+### Individual Commands
+
+**Frontend only:**
+```bash
+npm run frontend:dev     # Start frontend dev server
+npm run frontend:build   # Build frontend for production
+npm run frontend:preview # Preview production build
+```
+
+**Backend only:**
+```bash
+npm run backend:dev      # Start backend with nodemon
+npm run backend:start    # Start backend production server
+```
 
 ## ✨ Features
 
