@@ -74,7 +74,7 @@ const userService = {
       createdBy
     } = userData;
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
     
     const result = await query(
       `INSERT INTO users (email, password_hash, full_name, role, department, phone, created_by)
@@ -95,7 +95,7 @@ const userService = {
     Object.keys(updateData).forEach(key => {
       if (key === 'password') {
         fields.push(`password_hash = $${paramCount}`);
-        values.push(bcrypt.hashSync(updateData[key], 12));
+        values.push(bcrypt.hashSync(updateData[key], parseInt(process.env.BCRYPT_ROUNDS) || 12));
       } else if (key !== 'id') {
         fields.push(`${key} = $${paramCount}`);
         values.push(updateData[key]);
@@ -646,6 +646,29 @@ const tokenService = {
     );
     
     return result.rows[0];
+  },
+
+  // Clean up expired tokens
+  cleanupExpired: async () => {
+    const result = await query(
+      `DELETE FROM refresh_tokens 
+       WHERE expires_at < NOW() OR is_revoked = TRUE`
+    );
+    
+    return result.rowCount;
+  },
+
+  // Revoke all user tokens (for logout all devices)
+  revokeAllForUser: async (userId) => {
+    const result = await query(
+      `UPDATE refresh_tokens 
+       SET is_revoked = TRUE, revoked_at = NOW()
+       WHERE user_id = $1 AND is_revoked = FALSE
+       RETURNING id`,
+      [userId]
+    );
+    
+    return result.rows;
   },
 
   // Revoke all user tokens

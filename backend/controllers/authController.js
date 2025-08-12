@@ -9,13 +9,47 @@ const {
   impersonationService 
 } = require('../services/database');
 
+// Password validation function
+const validatePassword = (password) => {
+  const minLength = 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  const errors = [];
+  
+  if (password.length < minLength) {
+    errors.push(`Password must be at least ${minLength} characters long`);
+  }
+  if (!hasUpperCase) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  if (!hasLowerCase) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  if (!hasNumbers) {
+    errors.push('Password must contain at least one number');
+  }
+  if (!hasSpecialChar) {
+    errors.push('Password must contain at least one special character');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
 // Generate access token
 const generateAccessToken = (user, impersonationData = null) => {
   const payload = {
     id: user.id,
     email: user.email,
     role: user.role,
-    fullName: user.full_name
+    fullName: user.full_name,
+    iat: Math.floor(Date.now() / 1000),
+    type: 'access'
   };
 
   // Add impersonation data if present
@@ -29,7 +63,11 @@ const generateAccessToken = (user, impersonationData = null) => {
   return jwt.sign(
     payload,
     process.env.JWT_SECRET || 'fallback-secret-key',
-    { expiresIn: process.env.JWT_EXPIRE || '1h' }
+    { 
+      expiresIn: process.env.JWT_EXPIRE || '1h',
+      issuer: 'framtt-superadmin',
+      audience: 'framtt-users'
+    }
   );
 };
 
@@ -51,6 +89,15 @@ const login = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'Please provide email and password'
+    });
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid email address'
     });
   }
 
@@ -192,14 +239,31 @@ const refreshToken = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate new access token
+  // Revoke the old refresh token for security (token rotation)
+  await tokenService.revoke(tokenHash);
+
+  // Generate new tokens
   const user = await userService.findById(tokenData.user_id);
-  const accessToken = generateAccessToken(user);
+  const newAccessToken = generateAccessToken(user);
+  const newRefreshToken = generateRefreshToken();
+  
+  // Store new refresh token
+  const newRefreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  await tokenService.store(user.id, newRefreshTokenHash, expiresAt);
+
+  // Set new refresh token as httpOnly cookie
+  res.cookie('refreshToken', newRefreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
 
   res.status(200).json({
     success: true,
     data: {
-      token: accessToken
+      token: newAccessToken
     }
   });
 });
@@ -578,10 +642,21 @@ const changePassword = asyncHandler(async (req, res) => {
     });
   }
 
-  if (newPassword.length < 8) {
+  // Validate new password strength
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
     return res.status(400).json({
       success: false,
-      message: 'New password must be at least 8 characters long'
+      message: 'Password does not meet requirements',
+      errors: passwordValidation.errors
+    });
+  }
+
+  // Check if new password is different from current
+  if (currentPassword === newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'New password must be different from current password'
     });
   }
 

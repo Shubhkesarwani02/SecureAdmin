@@ -16,7 +16,18 @@ const verifyToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key', {
+      issuer: 'framtt-superadmin',
+      audience: 'framtt-users'
+    });
+    
+    // Validate token structure and required claims
+    if (!decoded.id || !decoded.email || !decoded.role || decoded.type !== 'access') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token structure.'
+      });
+    }
     
     // Check if user exists and is active
     const user = await userService.findById(decoded.id);
