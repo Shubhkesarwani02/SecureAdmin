@@ -8,19 +8,29 @@ const {
   auditService,
   impersonationService 
 } = require('../services/database');
+const { jwtSecretManager, ImpersonationTokenManager } = require('../middleware/security');
 
-// Password validation function
+// Enhanced password validation function
 const validatePassword = (password) => {
   const minLength = 8;
+  const maxLength = 128;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumbers = /\d/.test(password);
   const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  const hasNoRepeating = !(/(.)\1{2,}/.test(password)); // No more than 2 consecutive repeating chars
+  const hasNoCommonPatterns = !(
+    /123456|password|qwerty|admin|letmein/i.test(password) ||
+    /(.)\1{3,}/.test(password) // No more than 3 same characters
+  );
 
   const errors = [];
   
   if (password.length < minLength) {
     errors.push(`Password must be at least ${minLength} characters long`);
+  }
+  if (password.length > maxLength) {
+    errors.push(`Password must be no more than ${maxLength} characters long`);
   }
   if (!hasUpperCase) {
     errors.push('Password must contain at least one uppercase letter');
@@ -34,20 +44,54 @@ const validatePassword = (password) => {
   if (!hasSpecialChar) {
     errors.push('Password must contain at least one special character');
   }
+  if (!hasNoRepeating) {
+    errors.push('Password must not contain more than 2 consecutive repeating characters');
+  }
+  if (!hasNoCommonPatterns) {
+    errors.push('Password must not contain common patterns or dictionary words');
+  }
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
+    strength: calculatePasswordStrength(password)
   };
 };
 
-// Generate access token
+// Calculate password strength score
+const calculatePasswordStrength = (password) => {
+  let score = 0;
+  
+  // Length bonus
+  score += Math.min(password.length * 2, 20);
+  
+  // Character variety bonus
+  if (/[a-z]/.test(password)) score += 5;
+  if (/[A-Z]/.test(password)) score += 5;
+  if (/\d/.test(password)) score += 5;
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 10;
+  
+  // Additional complexity bonus
+  if (password.length >= 12) score += 10;
+  if (/[^a-zA-Z0-9]/.test(password)) score += 5;
+  
+  // Penalty for common patterns
+  if (/123|abc|qwe/i.test(password)) score -= 10;
+  if (/(.)\1{2,}/.test(password)) score -= 10;
+  
+  return Math.max(0, Math.min(100, score));
+};
+
+// Generate access token with enhanced security
 const generateAccessToken = (user, impersonationData = null) => {
+  const tokenId = crypto.randomUUID(); // Unique token ID for blacklisting
+  
   const payload = {
     id: user.id,
     email: user.email,
     role: user.role,
     fullName: user.full_name,
+    jti: tokenId, // JWT ID for token blacklisting
     iat: Math.floor(Date.now() / 1000),
     type: 'access'
   };
@@ -58,6 +102,7 @@ const generateAccessToken = (user, impersonationData = null) => {
     payload.impersonated_user_id = impersonationData.impersonated_user_id;
     payload.session_id = impersonationData.session_id;
     payload.is_impersonation = true;
+    payload.type = 'impersonation';
   }
 
   return jwt.sign(

@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { userService, auditService } = require('../services/database');
+const { jwtSecretManager, tokenBlacklist } = require('./security');
 
 // Verify JWT token (supports both regular and impersonation tokens)
 const verifyToken = async (req, res, next) => {
@@ -16,10 +17,19 @@ const verifyToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key', {
+    // Use enhanced JWT verification with rotation support
+    const decoded = jwtSecretManager.verifyToken(token, {
       issuer: 'framtt-superadmin',
       audience: 'framtt-users'
     });
+    
+    // Check if token is blacklisted
+    if (tokenBlacklist.isBlacklisted(decoded.jti || decoded.id)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has been revoked.'
+      });
+    }
     
     // Validate token structure and required claims
     if (!decoded.id || !decoded.email || !decoded.role || decoded.type !== 'access') {
@@ -70,6 +80,21 @@ const verifyToken = async (req, res, next) => {
 
     next();
   } catch (error) {
+    // Log failed token verification attempts
+    await auditService.log({
+      userId: null,
+      action: 'TOKEN_VERIFICATION_FAILED',
+      resourceType: 'SECURITY',
+      resourceId: 'jwt_token',
+      oldValues: null,
+      newValues: { 
+        error: error.message,
+        tokenPrefix: token ? token.substring(0, 10) + '...' : 'none'
+      },
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent')
+    });
+
     return res.status(401).json({
       success: false,
       message: 'Invalid token.',

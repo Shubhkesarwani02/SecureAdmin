@@ -2,11 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 // Import custom logger
 const { logger, createMorganFormat } = require('./utils/logger');
+
+// Import security middleware
+const { 
+  generalLimiter, 
+  authLimiter, 
+  impersonationLimiter, 
+  passwordChangeLimiter,
+  adminOperationsLimiter 
+} = require('./middleware/rateLimiting');
+const { 
+  securityHeaders, 
+  sanitizeInput, 
+  jwtSecretManager 
+} = require('./middleware/security');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -23,28 +36,60 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security middleware
-app.use(helmet());
+// Enhanced security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+}));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use(limiter);
+// Additional security headers
+app.use(securityHeaders);
 
-// CORS configuration
-app.use(cors({
-  origin: [
+// Input sanitization
+app.use(sanitizeInput);
+
+// Check JWT secret rotation need
+if (jwtSecretManager.shouldRotateSecret()) {
+  console.warn('⚠️  JWT Secret rotation recommended. Run the rotation script.');
+}
+
+// CORS configuration with security enhancements
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : [
     'http://localhost:3000',
     'http://localhost:5173',
     'https://superadmin.framtt.com',
     'https://framtt-superadmin.netlify.app'
-  ],
+  ];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400 // 24 hours
 }));
 
 // Body parsing middleware
@@ -92,8 +137,16 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end(); // No Content
 });
 
-// API routes
+// API routes with enhanced rate limiting
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/change-password', passwordChangeLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth', authRoutes);
+
+app.use('/api/impersonate', impersonationLimiter);
+app.use('/api/admin', adminOperationsLimiter);
+
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/accounts', require('./routes/accountRoutes'));
@@ -101,10 +154,11 @@ app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/audit', require('./routes/auditRoutes'));
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/clients', clientRoutes);
-app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', require('./routes/roleRoutes'));
-app.use('/api/impersonate', require('./routes/impersonationRoutes'));
+
+// Apply general rate limiting to all API routes
+app.use('/api', generalLimiter);
 
 // Handle 404 errors
 app.use(notFound);
