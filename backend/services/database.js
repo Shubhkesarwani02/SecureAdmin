@@ -361,6 +361,63 @@ const csmAssignmentService = {
   }
 };
 
+// User Account operations (User to Account mapping)
+const userAccountService = {
+  // Assign user to account
+  assign: async (assignmentData) => {
+    const { userId, accountId, roleInAccount = 'member', assignedBy } = assignmentData;
+    
+    const result = await query(
+      `INSERT INTO user_accounts (user_id, account_id, role_in_account, assigned_by)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, account_id) 
+       DO UPDATE SET role_in_account = $3, updated_at = NOW()
+       RETURNING *`,
+      [userId, accountId, roleInAccount, assignedBy]
+    );
+    
+    return result.rows[0];
+  },
+
+  // Get user account assignments
+  getByUser: async (userId) => {
+    const result = await query(
+      `SELECT ua.*, a.name as account_name, a.company_name, a.email as account_email
+       FROM user_accounts ua
+       INNER JOIN accounts a ON ua.account_id = a.id
+       WHERE ua.user_id = $1 AND a.status != 'deleted'
+       ORDER BY ua.assigned_at DESC`,
+      [userId]
+    );
+    
+    return result.rows;
+  },
+
+  // Get account user assignments
+  getByAccount: async (accountId) => {
+    const result = await query(
+      `SELECT ua.*, u.full_name as user_name, u.email as user_email, u.role as user_role
+       FROM user_accounts ua
+       INNER JOIN users u ON ua.user_id = u.id
+       WHERE ua.account_id = $1 AND u.status != 'deleted'
+       ORDER BY ua.assigned_at DESC`,
+      [accountId]
+    );
+    
+    return result.rows;
+  },
+
+  // Remove user account assignment
+  remove: async (userId, accountId) => {
+    const result = await query(
+      'DELETE FROM user_accounts WHERE user_id = $1 AND account_id = $2 RETURNING *',
+      [userId, accountId]
+    );
+    
+    return result.rows[0];
+  }
+};
+
 // Impersonation operations
 const impersonationService = {
   // Start impersonation session
@@ -497,6 +554,125 @@ const impersonationService = {
       logs: result.rows,
       total: result.rows.length
     };
+  },
+
+  // Check if user can impersonate another user based on role hierarchy and assignments
+  canImpersonate: async (impersonatorId, targetUserId) => {
+    // Get both users
+    const impersonator = await userService.findById(impersonatorId);
+    const targetUser = await userService.findById(targetUserId);
+
+    if (!impersonator || !targetUser) {
+      return {
+        canImpersonate: false,
+        reason: 'User not found'
+      };
+    }
+
+    // Cannot impersonate yourself
+    if (impersonatorId === targetUserId) {
+      return {
+        canImpersonate: false,
+        reason: 'Cannot impersonate yourself'
+      };
+    }
+
+    // Check if target user is already being impersonated
+    if (targetUser.is_impersonation_active) {
+      return {
+        canImpersonate: false,
+        reason: 'Target user is already being impersonated'
+      };
+    }
+
+    // Role-based access control
+    if (impersonator.role === 'superadmin') {
+      // Superadmin can impersonate anyone
+      return {
+        canImpersonate: true,
+        reason: 'Superadmin has full impersonation privileges'
+      };
+    }
+
+    if (impersonator.role === 'admin') {
+      // Admin can impersonate CSMs and regular users, but not other admins or superadmins
+      if (['csm', 'user'].includes(targetUser.role)) {
+        return {
+          canImpersonate: true,
+          reason: 'Admin can impersonate CSMs and users'
+        };
+      }
+      return {
+        canImpersonate: false,
+        reason: `Admin cannot impersonate ${targetUser.role} users`
+      };
+    }
+
+    if (impersonator.role === 'csm') {
+      // CSMs can only impersonate users in their assigned accounts
+      if (targetUser.role === 'user') {
+        const csmAssignments = await csmAssignmentService.getByCSM(impersonatorId);
+        const userAccounts = await userAccountService.getByUser(targetUserId);
+        
+        const hasCommonAccount = csmAssignments.some(assignment => 
+          userAccounts.some(userAccount => userAccount.account_id === assignment.account_id)
+        );
+        
+        if (hasCommonAccount) {
+          return {
+            canImpersonate: true,
+            reason: 'CSM can impersonate users in assigned accounts'
+          };
+        }
+        
+        return {
+          canImpersonate: false,
+          reason: 'CSM can only impersonate users in assigned accounts'
+        };
+      }
+      
+      return {
+        canImpersonate: false,
+        reason: 'CSMs can only impersonate regular users'
+      };
+    }
+
+    // Regular users cannot impersonate anyone
+    return {
+      canImpersonate: false,
+      reason: 'Regular users do not have impersonation privileges'
+    };
+  },
+
+  // Get current impersonation status for a user
+  getCurrentStatus: async (userId) => {
+    const result = await query(
+      `SELECT il.*, 
+              imp.full_name as impersonator_name, imp.email as impersonator_email,
+              imp_ed.full_name as impersonated_name, imp_ed.email as impersonated_email
+       FROM impersonation_logs il
+       INNER JOIN users imp ON il.impersonator_id = imp.id
+       INNER JOIN users imp_ed ON il.impersonated_id = imp_ed.id
+       WHERE (il.impersonator_id = $1 OR il.impersonated_id = $1) AND il.is_active = TRUE
+       ORDER BY il.start_time DESC
+       LIMIT 1`,
+      [userId]
+    );
+
+    return result.rows[0] || null;
+  },
+
+  // Record an action performed during impersonation
+  recordAction: async (sessionId, action) => {
+    await query(
+      `UPDATE impersonation_logs 
+       SET actions_performed = actions_performed || $2::jsonb
+       WHERE session_id = $1 AND is_active = TRUE`,
+      [sessionId, JSON.stringify([{
+        action,
+        timestamp: new Date().toISOString()
+      }])]
+    );
   }
 };
 
@@ -703,6 +879,7 @@ module.exports = {
   userService,
   accountService,
   csmAssignmentService,
+  userAccountService,
   impersonationService,
   auditService,
   tokenService

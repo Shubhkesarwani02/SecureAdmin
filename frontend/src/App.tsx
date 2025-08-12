@@ -2,13 +2,16 @@
 
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger } from "./components/ui/sidebar"
-import { BarChart3, Users, Activity, CreditCard, Code, Settings, Shield, Bell, User, LogOut, UserCog } from "lucide-react"
+import { BarChart3, Users, Activity, CreditCard, Code, Settings, Shield, Bell, User, LogOut, UserCog, UserCheck } from "lucide-react"
 import { OverviewDashboard } from "./components/OverviewDashboard"
 import { ClientManagement } from "./components/ClientManagement"
 import { SystemMonitoring } from "./components/SystemMonitoring"
 import { PaymentsBilling } from "./components/PaymentsBilling"
 import { SnippetManager } from "./components/SnippetManager"
 import { AdminSettings } from "./components/AdminSettings"
+import { UserManagement } from "./components/UserManagement"
+import { ImpersonationHistory } from "./components/ImpersonationHistory"
+import { ImpersonationBanner } from "./components/ImpersonationBanner"
 import { NotFound } from "./components/NotFound"
 import { LoginPage } from "./components/LoginPage"
 import { ProtectedRoute } from "./components/ProtectedRoute"
@@ -46,6 +49,13 @@ const menuItems = [
     description: "Manage tenant accounts"
   },
   {
+    title: "User Management",
+    icon: UserCog,
+    path: "/users",
+    key: "users",
+    description: "Manage users and roles"
+  },
+  {
     title: "System Monitoring",
     icon: Activity,
     path: "/monitoring",
@@ -57,21 +67,28 @@ const menuItems = [
     icon: CreditCard,
     path: "/payments",
     key: "payments",
-    description: "Revenue & subscription management"
+    description: "Revenue & billing management"
   },
   {
-    title: "Snippet Manager",
+    title: "Integration Snippets",
     icon: Code,
     path: "/snippets",
     key: "snippets",
-    description: "Integration code management"
+    description: "Code snippets & API keys"
+  },
+  {
+    title: "Impersonation History",
+    icon: UserCheck,
+    path: "/impersonation-history",
+    key: "impersonation",
+    description: "View impersonation logs"
   },
   {
     title: "Admin Settings",
     icon: Settings,
     path: "/settings",
     key: "settings",
-    description: "User roles & permissions"
+    description: "System configuration"
   }
 ]
 
@@ -113,7 +130,35 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
     return item ? item.key : "overview"
   }
 
+  const getFilteredMenuItems = () => {
+    if (!userProfile) return menuItems
+    
+    // Filter menu items based on user role
+    return menuItems.filter(item => {
+      switch (item.key) {
+        case 'users':
+          // Only admins and superadmins can see user management
+          return ['admin', 'superadmin'].includes(userProfile.role)
+        case 'impersonation':
+          // Only admins and superadmins can see impersonation history
+          return ['admin', 'superadmin'].includes(userProfile.role)
+        case 'settings':
+          // Only superadmins can see admin settings
+          return userProfile.role === 'superadmin'
+        case 'monitoring':
+          // Only admins and superadmins can see system monitoring
+          return ['admin', 'superadmin'].includes(userProfile.role)
+        case 'payments':
+          // Only admins and superadmins can see payments
+          return ['admin', 'superadmin'].includes(userProfile.role)
+        default:
+          return true
+      }
+    })
+  }
+
   const activeView = getActiveKey(location.pathname)
+  const filteredMenuItems = getFilteredMenuItems()
 
   const handleNavigation = (path: string) => {
     navigate(path)
@@ -143,7 +188,7 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu className="space-y-1">
-              {menuItems.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton 
                     onClick={() => handleNavigation(item.path)}
@@ -423,13 +468,18 @@ function DashboardContent() {
         
         <main className="flex-1 p-6">
           <div className="flex-1">
+            {/* Impersonation Banner */}
+            <ImpersonationBanner />
+            
             <Routes>
               <Route path="/" element={<OverviewDashboard />} />
               <Route path="/overview" element={<Navigate to="/" replace />} />
               <Route path="/clients" element={<ClientManagement />} />
+              <Route path="/users" element={<UserManagement />} />
               <Route path="/monitoring" element={<SystemMonitoring />} />
               <Route path="/payments" element={<PaymentsBilling />} />
               <Route path="/snippets" element={<SnippetManager />} />
+              <Route path="/impersonation-history" element={<ImpersonationHistory />} />
               <Route path="/settings" element={<AdminSettings />} />
               {/* 404 Not Found route */}
               <Route path="*" element={<NotFound />} />

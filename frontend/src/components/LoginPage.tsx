@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Shield, Loader2, Users, BarChart3, Settings } from 'lucide-react'
+import { Shield, Loader2, Users, BarChart3, Settings, Eye, EyeOff } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Alert, AlertDescription } from './ui/alert'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
 import { useAuth } from '../contexts/AuthContext'
 
 export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({})
   
   const { signIn, user, loading: authLoading, error: authError, clearError } = useAuth()
   const navigate = useNavigate()
@@ -26,11 +32,36 @@ export const LoginPage: React.FC = () => {
     clearError()
   }, [clearError])
 
-  const handleSignIn = async () => {
+  const validateForm = () => {
+    const errors: { email?: string; password?: string } = {}
+    
+    if (!email.trim()) {
+      errors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+    
+    if (!password.trim()) {
+      errors.password = 'Password is required'
+    } else if (password.length < 6) {
+      errors.password = 'Password must be at least 6 characters'
+    }
+    
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      const { error: signInError } = await signIn()
+      const { error: signInError } = await signIn(email.trim(), password)
 
       if (signInError) {
         console.error('Sign in error:', signInError)
@@ -114,7 +145,7 @@ export const LoginPage: React.FC = () => {
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <CardDescription>
-              Access your superadmin dashboard
+              Sign in to access your superadmin dashboard
             </CardDescription>
           </CardHeader>
           
@@ -125,19 +156,57 @@ export const LoginPage: React.FC = () => {
               </Alert>
             )}
             
-            {/* Demo Info */}
-            <div className="space-y-4">
-              <div className="text-center space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Demo Mode - No login credentials required
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Click the button below to access the dashboard with full admin privileges
-                </p>
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={validationErrors.email ? 'border-destructive' : ''}
+                  disabled={isLoading}
+                />
+                {validationErrors.email && (
+                  <p className="text-sm text-destructive">{validationErrors.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={validationErrors.password ? 'border-destructive pr-10' : 'pr-10'}
+                    disabled={isLoading}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+                {validationErrors.password && (
+                  <p className="text-sm text-destructive">{validationErrors.password}</p>
+                )}
               </div>
 
               <Button 
-                onClick={handleSignIn}
+                type="submit"
                 className="w-full h-12 text-base"
                 disabled={isLoading || authLoading}
               >
@@ -153,18 +222,16 @@ export const LoginPage: React.FC = () => {
                   </>
                 )}
               </Button>
-            </div>
+            </form>
 
-            {/* Demo user info */}
+            {/* Demo credentials info */}
             <div className="pt-4 border-t border-border">
               <div className="text-center text-sm text-muted-foreground space-y-2">
-                <p className="font-medium">Demo User Profile:</p>
+                <p className="font-medium">Demo Credentials:</p>
                 <div className="text-xs bg-muted/50 p-3 rounded-md space-y-1">
-                  <p><strong>Name:</strong> John Smith</p>
-                  <p><strong>Role:</strong> Superadmin</p>
-                  <p><strong>Email:</strong> john@framtt.com</p>
-                  <p><strong>Department:</strong> Management</p>
-                  <p className="text-muted-foreground pt-1">Full access to all dashboard features</p>
+                  <p><strong>Email:</strong> admin@framtt.com</p>
+                  <p><strong>Password:</strong> admin123</p>
+                  <p className="text-muted-foreground pt-1">Use these credentials to test the system</p>
                 </div>
               </div>
             </div>

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { apiClient, type ApiResponse } from '../lib/api'
 
 interface UserProfile {
-  id: number
+  id: string
   full_name: string
   email: string
   phone?: string
@@ -15,6 +16,16 @@ interface UserProfile {
   created_at: string
   updated_at: string
   last_login?: string
+  isImpersonationActive?: boolean
+  currentImpersonatorId?: string
+}
+
+interface ImpersonationSession {
+  sessionId: string
+  targetUser: UserProfile
+  impersonator: UserProfile
+  expiresAt: string
+  startedAt: string
 }
 
 interface AuthContextType {
@@ -23,9 +34,14 @@ interface AuthContextType {
   session: any
   loading: boolean
   error: string | null
-  signIn: () => Promise<{ error: any }>
+  isImpersonating: boolean
+  impersonationSession: ImpersonationSession | null
+  signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  startImpersonation: (targetUserId: string, reason?: string) => Promise<{ error: any }>
+  stopImpersonation: () => Promise<{ error: any }>
+  getImpersonationHistory: (params?: any) => Promise<ApiResponse>
   clearError: () => void
 }
 
@@ -39,78 +55,134 @@ export const useAuth = () => {
   return context
 }
 
+// Decode JWT token to extract user information
+const decodeJWT = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch (error) {
+    console.error('Error decoding JWT:', error)
+    return null
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [session, setSession] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isImpersonating, setIsImpersonating] = useState(false)
+  const [impersonationSession, setImpersonationSession] = useState<ImpersonationSession | null>(null)
 
   const clearError = () => setError(null)
 
-  // Demo login function - no authentication required
-  const signIn = async () => {
+  // Initialize authentication on load
+  const initializeAuth = async () => {
+    setLoading(true)
+    const token = apiClient.getToken()
+    
+    if (token) {
+      try {
+        // Decode token to check if it's an impersonation token
+        const decodedToken = decodeJWT(token)
+        
+        if (decodedToken) {
+          const now = Math.floor(Date.now() / 1000)
+          
+          // Check if token is expired
+          if (decodedToken.exp && decodedToken.exp < now) {
+            apiClient.clearToken()
+            setLoading(false)
+            return
+          }
+
+          // Get current user profile
+          const response = await apiClient.getMe()
+          
+          if (response.success) {
+            const userData = response.data.user
+            setUser(userData)
+            setUserProfile(userData)
+            
+            // Check if this is an impersonation session
+            if (decodedToken.is_impersonation) {
+              setIsImpersonating(true)
+              setImpersonationSession({
+                sessionId: decodedToken.session_id,
+                targetUser: userData,
+                impersonator: {
+                  id: decodedToken.impersonator_id,
+                  full_name: 'Impersonator', // This would be filled from actual data
+                  email: '',
+                  role: '',
+                  permissions: [],
+                  preferences: {},
+                  created_at: '',
+                  updated_at: '',
+                  status: 'active'
+                },
+                expiresAt: new Date(decodedToken.exp * 1000).toISOString(),
+                startedAt: new Date(decodedToken.iat * 1000).toISOString()
+              })
+            } else {
+              setIsImpersonating(false)
+              setImpersonationSession(null)
+            }
+            
+            setSession({
+              access_token: token,
+              user: userData,
+              expires_at: decodedToken.exp * 1000
+            })
+          } else {
+            // Invalid token, clear it
+            apiClient.clearToken()
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        apiClient.clearToken()
+      }
+    }
+    
+    setLoading(false)
+  }
+
+  // Sign in with email and password
+  const signIn = async (email: string, password: string) => {
     setLoading(true)
     setError(null)
     
     try {
-      // Create demo user
-      const demoUser = {
-        id: 'demo-user-123',
-        email: 'john@framtt.com',
-        created_at: new Date().toISOString()
+      const response = await apiClient.login(email, password)
+      
+      if (response.success) {
+        const userData = response.data.user
+        setUser(userData)
+        setUserProfile(userData)
+        setSession({
+          access_token: response.data.accessToken,
+          user: userData,
+          expires_at: new Date(Date.now() + 60 * 60 * 1000).getTime() // 1 hour
+        })
+        setIsImpersonating(false)
+        setImpersonationSession(null)
+        
+        return { error: null }
+      } else {
+        setError(response.message)
+        return { error: { message: response.message } }
       }
-
-      // Create demo profile
-      const demoProfile: UserProfile = {
-        id: 1,
-        full_name: 'John Smith',
-        email: 'john@framtt.com',
-        phone: '+1 (555) 123-4567',
-        role: 'superadmin',
-        department: 'Management',
-        status: 'active',
-        avatar: null,
-        bio: 'Superadmin dashboard administrator with full system access.',
-        permissions: ['read:all', 'write:all', 'delete:all', 'admin:all'],
-        preferences: {
-          emailNotifications: true,
-          pushNotifications: false,
-          weeklyReports: true,
-          marketingEmails: false,
-          twoFactorAuth: true,
-          sessionTimeout: "8",
-          language: "en",
-          timezone: "America/New_York",
-          theme: "light"
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_login: new Date().toISOString()
-      }
-
-      // Create demo session
-      const demoSession = {
-        access_token: 'demo-access-token',
-        user: demoUser,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).getTime() // 24 hours from now
-      }
-
-      // Set all the auth states
-      setUser(demoUser)
-      setUserProfile(demoProfile)
-      setSession(demoSession)
-
-      // Store in localStorage for persistence
-      localStorage.setItem('demo-auth', JSON.stringify({
-        user: demoUser,
-        userProfile: demoProfile,
-        session: demoSession
-      }))
-
-      return { error: null }
     } catch (error) {
-      console.error('Demo login error:', error)
+      console.error('Sign in error:', error)
       const errorMsg = 'An unexpected error occurred during sign in'
       setError(errorMsg)
       return { error: { message: errorMsg } }
@@ -119,9 +191,107 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  // Start impersonation
+  const startImpersonation = async (targetUserId: string, reason?: string) => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await apiClient.startImpersonation(targetUserId, reason)
+      
+      if (response.success) {
+        // Store the original user as impersonator
+        const originalUser = userProfile
+        
+        // Update session with impersonated user
+        setUser(response.data.targetUser)
+        setUserProfile(response.data.targetUser)
+        setIsImpersonating(true)
+        setImpersonationSession({
+          sessionId: response.data.sessionId,
+          targetUser: response.data.targetUser,
+          impersonator: originalUser!,
+          expiresAt: response.data.expiresAt,
+          startedAt: new Date().toISOString()
+        })
+        
+        setSession({
+          access_token: response.data.impersonationToken,
+          user: response.data.targetUser,
+          expires_at: new Date(response.data.expiresAt).getTime()
+        })
+        
+        return { error: null }
+      } else {
+        setError(response.message)
+        return { error: { message: response.message } }
+      }
+    } catch (error) {
+      console.error('Impersonation error:', error)
+      const errorMsg = 'Failed to start impersonation'
+      setError(errorMsg)
+      return { error: { message: errorMsg } }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Stop impersonation
+  const stopImpersonation = async () => {
+    if (!isImpersonating || !impersonationSession) {
+      return { error: { message: 'No active impersonation session' } }
+    }
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await apiClient.stopImpersonation(impersonationSession.sessionId)
+      
+      if (response.success) {
+        // Restore original user session
+        const originalUser = impersonationSession.impersonator
+        setUser(originalUser)
+        setUserProfile(originalUser)
+        setIsImpersonating(false)
+        setImpersonationSession(null)
+        
+        // Clear token - user will need to login again or we need to get a fresh token
+        apiClient.clearToken()
+        setSession(null)
+        
+        return { error: null }
+      } else {
+        setError(response.message)
+        return { error: { message: response.message } }
+      }
+    } catch (error) {
+      console.error('Stop impersonation error:', error)
+      const errorMsg = 'Failed to stop impersonation'
+      setError(errorMsg)
+      return { error: { message: errorMsg } }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Get impersonation history
+  const getImpersonationHistory = async (params?: any) => {
+    return apiClient.getImpersonationHistory(params)
+  }
+
   const refreshProfile = async () => {
-    // In demo mode, just keep the current profile
-    return
+    if (!apiClient.isAuthenticated()) return
+    
+    try {
+      const response = await apiClient.getMe()
+      if (response.success) {
+        setUser(response.data.user)
+        setUserProfile(response.data.user)
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error)
+    }
   }
 
   const signOut = async () => {
@@ -129,50 +299,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null)
     
     try {
-      // Clear local state
+      await apiClient.logout()
+    } catch (error) {
+      console.error('Sign out error:', error)
+    } finally {
+      // Always clear local state
       setUser(null)
       setUserProfile(null)
       setSession(null)
-      
-      // Clear localStorage
-      localStorage.removeItem('demo-auth')
-    } catch (error) {
-      console.error('Sign out error:', error)
-      setError('Error signing out')
-    } finally {
+      setIsImpersonating(false)
+      setImpersonationSession(null)
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    // Check for existing demo session in localStorage
-    const initializeAuth = async () => {
-      try {
-        setError(null)
-        setLoading(true)
-
-        const storedAuth = localStorage.getItem('demo-auth')
-        if (storedAuth) {
-          const { user: storedUser, userProfile: storedProfile, session: storedSession } = JSON.parse(storedAuth)
-          
-          // Check if session is still valid (within 24 hours)
-          if (storedSession.expires_at > Date.now()) {
-            setUser(storedUser)
-            setUserProfile(storedProfile)
-            setSession(storedSession)
-          } else {
-            // Session expired, clear it
-            localStorage.removeItem('demo-auth')
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing demo auth:', error)
-        localStorage.removeItem('demo-auth') // Clear invalid stored auth
-      } finally {
-        setLoading(false)
-      }
-    }
-
     initializeAuth()
   }, [])
 
@@ -182,9 +323,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     loading,
     error,
+    isImpersonating,
+    impersonationSession,
     signIn,
     signOut,
     refreshProfile,
+    startImpersonation,
+    stopImpersonation,
+    getImpersonationHistory,
     clearError
   }
 
