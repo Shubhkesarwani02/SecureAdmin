@@ -97,6 +97,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/accounts', require('./routes/accountRoutes'));
+app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/audit', require('./routes/auditRoutes'));
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/clients', clientRoutes);
@@ -128,7 +129,8 @@ const startServer = async () => {
       console.log('  🔐 Authentication: /api/auth');
       console.log('  👥 Users: /api/users');
       console.log('  🏢 Accounts: /api/accounts');
-      console.log('  📊 Dashboard: /api/dashboard');
+      console.log('  � Assignments: /api/assignments');
+      console.log('  �📊 Dashboard: /api/dashboard');
       console.log('  📋 Audit: /api/audit');
       console.log('  🚗 Vehicles: /api/vehicles');
       console.log('  👤 Clients: /api/clients');

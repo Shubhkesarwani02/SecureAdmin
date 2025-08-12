@@ -358,6 +358,62 @@ const csmAssignmentService = {
     );
     
     return result.rows[0];
+  },
+
+  // Get accounts by CSM
+  getAccountsByCSM: async (csmId) => {
+    const result = await query(
+      `SELECT ca.*, a.name as account_name, a.company_name, a.email as account_email, a.status as account_status
+       FROM csm_assignments ca
+       INNER JOIN accounts a ON ca.account_id = a.id
+       WHERE ca.csm_id = $1 AND a.status != 'deleted'
+       ORDER BY ca.is_primary DESC, ca.assigned_at DESC`,
+      [csmId]
+    );
+    
+    return result.rows;
+  },
+
+  // Get CSMs assigned to an account
+  getCSMsByAccount: async (accountId) => {
+    const result = await query(
+      `SELECT ca.*, u.full_name as csm_name, u.email as csm_email, u.status as csm_status
+       FROM csm_assignments ca
+       INNER JOIN users u ON ca.csm_id = u.id
+       WHERE ca.account_id = $1 AND u.status != 'deleted'
+       ORDER BY ca.is_primary DESC, ca.assigned_at DESC`,
+      [accountId]
+    );
+    
+    return result.rows;
+  },
+
+  // Get unassigned accounts (accounts without CSM assignments)
+  getUnassignedAccounts: async () => {
+    const result = await query(
+      `SELECT a.id, a.name, a.company_name, a.email, a.status, a.subscription_plan, a.created_at
+       FROM accounts a
+       LEFT JOIN csm_assignments ca ON a.id = ca.account_id
+       WHERE a.status = 'active' AND ca.account_id IS NULL
+       ORDER BY a.name`
+    );
+    
+    return result.rows;
+  },
+
+  // Get available CSMs for assignment
+  getAvailableCSMs: async () => {
+    const result = await query(
+      `SELECT u.id, u.full_name, u.email, u.department, u.status, u.created_at,
+       COUNT(ca.account_id) as assigned_accounts_count
+       FROM users u
+       LEFT JOIN csm_assignments ca ON u.id = ca.csm_id
+       WHERE u.role = 'csm' AND u.status = 'active'
+       GROUP BY u.id, u.full_name, u.email, u.department, u.status, u.created_at
+       ORDER BY assigned_accounts_count ASC, u.full_name`
+    );
+    
+    return result.rows;
   }
 };
 
@@ -415,6 +471,42 @@ const userAccountService = {
     );
     
     return result.rows[0];
+  },
+
+  // Get unassigned users (users without any account assignments)
+  getUnassignedUsers: async () => {
+    const result = await query(
+      `SELECT u.id, u.full_name, u.email, u.role, u.department, u.status, u.created_at
+       FROM users u
+       LEFT JOIN user_accounts ua ON u.id = ua.user_id
+       WHERE u.role = 'user' AND u.status = 'active' AND ua.user_id IS NULL
+       ORDER BY u.full_name`
+    );
+    
+    return result.rows;
+  },
+
+  // Get users available for assignment to a specific account
+  getAvailableUsers: async (accountId = null) => {
+    let queryText = `
+      SELECT u.id, u.full_name, u.email, u.role, u.department, u.status, u.created_at
+      FROM users u
+      WHERE u.role = 'user' AND u.status = 'active'
+    `;
+    
+    let params = [];
+    
+    if (accountId) {
+      queryText += ` AND u.id NOT IN (
+        SELECT ua.user_id FROM user_accounts ua WHERE ua.account_id = $1
+      )`;
+      params = [accountId];
+    }
+    
+    queryText += ` ORDER BY u.full_name`;
+    
+    const result = await query(queryText, params);
+    return result.rows;
   }
 };
 
