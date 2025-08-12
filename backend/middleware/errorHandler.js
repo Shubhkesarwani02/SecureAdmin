@@ -1,14 +1,18 @@
+const { logger } = require('../utils/logger');
+
 const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Log error for debugging
-  console.error('API Error:', {
+  // Log error with better formatting
+  logger.error('API Error:', {
     message: err.message,
-    stack: err.stack,
-    url: req.url,
     method: req.method,
-    timestamp: new Date().toISOString()
+    url: req.url,
+    statusCode: error.statusCode || 500,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 
   // Mongoose bad ObjectId
@@ -49,6 +53,10 @@ const errorHandler = (err, req, res, next) => {
 
 const notFound = (req, res, next) => {
   const error = new Error(`Not Found - ${req.originalUrl}`);
+  logger.warn(`404 - Route not found: ${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
   res.status(404);
   next(error);
 };

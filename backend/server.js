@@ -5,6 +5,9 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// Import custom logger
+const { logger, createMorganFormat } = require('./utils/logger');
+
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
@@ -48,8 +51,22 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging middleware
-app.use(morgan('combined'));
+// Custom logging middleware with better formatting
+app.use(morgan(createMorganFormat()));
+
+// Request logging for debugging (only in development)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    if (!req.url.includes('/health') && !req.url.includes('/favicon.ico')) {
+      logger.debug(`Incoming request: ${req.method} ${req.url}`, {
+        body: req.body,
+        query: req.query,
+        headers: req.headers
+      });
+    }
+    next();
+  });
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -82,9 +99,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Framtt Superadmin API Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  logger.server.start(PORT, process.env.NODE_ENV || 'development');
 });
 
 module.exports = app;
