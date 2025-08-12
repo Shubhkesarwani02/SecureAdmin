@@ -185,6 +185,69 @@ const userService = {
   // Verify password
   verifyPassword: async (plainPassword, hashedPassword) => {
     return await bcrypt.compare(plainPassword, hashedPassword);
+  },
+
+  // Get users assigned to accounts managed by a specific CSM
+  getUsersByCSM: async (csmId, options = {}) => {
+    const {
+      role = 'user', // Default to only regular users
+      status,
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'u.created_at',
+      sortOrder = 'DESC'
+    } = options;
+
+    let whereClause = "WHERE u.status != 'deleted' AND u.role = $1";
+    const params = [role];
+    let paramCount = 2;
+
+    if (status) {
+      whereClause += ` AND u.status = $${paramCount}`;
+      params.push(status);
+      paramCount++;
+    }
+
+    if (search) {
+      whereClause += ` AND (u.full_name ILIKE $${paramCount} OR u.email ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+
+    const offset = (page - 1) * limit;
+    
+    const result = await query(
+      `SELECT DISTINCT u.id, u.email, u.full_name, u.role, u.department, u.phone, u.status, u.created_at, u.updated_at, u.last_login,
+       array_agg(DISTINCT a.name) as account_names
+       FROM users u
+       INNER JOIN user_accounts ua ON u.id = ua.user_id
+       INNER JOIN accounts a ON ua.account_id = a.id
+       INNER JOIN csm_assignments ca ON a.id = ca.account_id
+       ${whereClause} AND ca.csm_id = $${paramCount}
+       GROUP BY u.id, u.email, u.full_name, u.role, u.department, u.phone, u.status, u.created_at, u.updated_at, u.last_login
+       ORDER BY ${sortBy} ${sortOrder}
+       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`,
+      [...params, csmId, limit, offset]
+    );
+
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(DISTINCT u.id) 
+       FROM users u
+       INNER JOIN user_accounts ua ON u.id = ua.user_id
+       INNER JOIN accounts a ON ua.account_id = a.id
+       INNER JOIN csm_assignments ca ON a.id = ca.account_id
+       ${whereClause} AND ca.csm_id = $${paramCount}`,
+      [...params, csmId]
+    );
+
+    return {
+      users: result.rows,
+      total: parseInt(countResult.rows[0].count),
+      page,
+      totalPages: Math.ceil(countResult.rows[0].count / limit)
+    };
   }
 };
 

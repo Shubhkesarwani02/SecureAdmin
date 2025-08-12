@@ -20,6 +20,7 @@ const getUsers = asyncHandler(async (req, res) => {
     sortOrder = 'DESC'
   } = req.query;
 
+  const currentUserId = req.user.id;
   const currentUserRole = req.user.role;
   const options = {
     role,
@@ -30,6 +31,8 @@ const getUsers = asyncHandler(async (req, res) => {
     sortBy,
     sortOrder
   };
+
+  let result;
 
   // Apply role-based filtering
   if (currentUserRole === 'admin') {
@@ -42,15 +45,26 @@ const getUsers = asyncHandler(async (req, res) => {
         message: 'Access denied. Cannot view users with this role.'
       });
     }
+    result = await userService.getAll(options);
   } else if (currentUserRole === 'csm') {
     // CSM can only see users in their assigned accounts
+    if (role && role !== 'user') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. CSMs can only view regular users in assigned accounts.'
+      });
+    }
+    // Use the new getUsersByCSM function
+    result = await userService.getUsersByCSM(currentUserId, options);
+  } else if (currentUserRole === 'superadmin') {
+    // Superadmin can see all users
+    result = await userService.getAll(options);
+  } else {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. CSMs cannot list all users.'
+      message: 'Access denied. Insufficient privileges to view users.'
     });
   }
-
-  const result = await userService.getAll(options);
 
   // Log the action
   await auditService.log({
@@ -60,7 +74,7 @@ const getUsers = asyncHandler(async (req, res) => {
     resourceType: 'USER',
     resourceId: null,
     oldValues: null,
-    newValues: { filters: options },
+    newValues: { filters: options, userRole: currentUserRole },
     ipAddress: req.ip,
     userAgent: req.get('User-Agent')
   });
@@ -99,11 +113,29 @@ const getUser = asyncHandler(async (req, res) => {
     
     if (currentUserRole === 'csm') {
       // CSM can only view users in their assigned accounts
-      // Additional logic would be needed to check account assignments
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. CSM can only view users in assigned accounts.'
-      });
+      if (user.role !== 'user') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. CSM can only view regular users in assigned accounts.'
+        });
+      }
+
+      // Check if the user belongs to any account assigned to this CSM
+      const { userAccountService, csmAssignmentService } = require('../services/database');
+      
+      const userAccounts = await userAccountService.getByUser(id);
+      const csmAssignments = await csmAssignmentService.getByCSM(currentUserId);
+      
+      const hasCommonAccount = userAccounts.some(userAccount => 
+        csmAssignments.some(assignment => assignment.account_id === userAccount.account_id)
+      );
+      
+      if (!hasCommonAccount) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. This user is not in any account assigned to you.'
+        });
+      }
     }
 
     if (currentUserRole === 'admin' && ['admin', 'superadmin'].includes(user.role)) {

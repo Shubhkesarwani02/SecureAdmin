@@ -254,6 +254,62 @@ const canManageUser = async (req, res, next) => {
   });
 };
 
+// Check if CSM can access a specific user based on account assignments
+const checkCSMUserAccess = async (req, res, next) => {
+  const { userId: targetUserId } = req.params;
+  const currentUserRole = req.user.role;
+  const currentUserId = req.user.id;
+
+  // Skip check if user is accessing their own profile
+  if (currentUserId === targetUserId) {
+    return next();
+  }
+
+  // Skip check for admin and superadmin
+  if (['admin', 'superadmin'].includes(currentUserRole)) {
+    return next();
+  }
+
+  if (currentUserRole === 'csm') {
+    // Get target user
+    const { userService } = require('../services/database');
+    const targetUser = await userService.findById(targetUserId);
+    
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.'
+      });
+    }
+
+    // CSM can only access regular users
+    if (targetUser.role !== 'user') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. CSM can only access regular users in assigned accounts.'
+      });
+    }
+
+    // Check if the user belongs to any account assigned to this CSM
+    const { csmAssignmentService, userAccountService } = require('../services/database');
+    const csmAssignments = await csmAssignmentService.getByCSM(currentUserId);
+    const userAccounts = await userAccountService.getByUser(targetUserId);
+    
+    const hasCommonAccount = csmAssignments.some(assignment => 
+      userAccounts.some(userAccount => userAccount.account_id === assignment.account_id)
+    );
+    
+    if (!hasCommonAccount) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. This user is not in any account assigned to you.'
+      });
+    }
+  }
+
+  next();
+};
+
 // Check account access based on role and assignments
 const checkAccountAccess = async (req, res, next) => {
   const { accountId } = req.params;
@@ -464,6 +520,7 @@ module.exports = {
   verifyAdminOrSuperAdmin,
   canManageUser,
   checkAccountAccess,
+  checkCSMUserAccess,
   requireSuperAdmin,
   requireAdmin,
   requireCSMOrAbove,

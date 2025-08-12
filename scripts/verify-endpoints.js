@@ -3,10 +3,18 @@
 /**
  * Backend API Endpoints Verification Script
  * This script verifies that all required endpoints are properly implemented
+ * and tests authorization logic for different roles
  */
 
 const fs = require('fs');
 const path = require('path');
+
+// Import authorization test functions
+const {
+  testCSMAuthorization,
+  testAdminAuthorization, 
+  testSuperadminAuthorization
+} = require('./test-authorization.js');
 
 // Required endpoints from the specification
 const requiredEndpoints = [
@@ -178,6 +186,26 @@ if (allEndpointsImplemented) {
   console.log('✅ Role assignment endpoints: Implemented');
   console.log('✅ Proper access controls: Implemented');
   console.log('✅ Route registrations: Complete');
+  
+  // Check if authorization testing was requested
+  const args = process.argv.slice(2);
+  const testAuth = args.includes('--test-auth') || args.includes('--auth');
+  const roleFilter = args.find(arg => arg.startsWith('--role='))?.split('=')[1];
+  
+  if (testAuth) {
+    console.log('\n🔐 Running Authorization Tests...');
+    console.log('=' + '='.repeat(60));
+    
+    // Run authorization tests based on role filter
+    runAuthorizationTests(roleFilter);
+  } else {
+    console.log('\n💡 Tip: Run with --test-auth to verify authorization logic');
+    console.log('   Examples:');
+    console.log('   - node verify-endpoints.js --test-auth');
+    console.log('   - node verify-endpoints.js --test-auth --role=csm');
+    console.log('   - node verify-endpoints.js --test-auth --role=admin');
+    console.log('   - node verify-endpoints.js --test-auth --role=superadmin');
+  }
 } else {
   console.log('❌ ISSUES FOUND: Some endpoints are missing or not properly implemented.');
   console.log('Please check the output above for details.');
@@ -185,3 +213,47 @@ if (allEndpointsImplemented) {
 }
 
 console.log('\n🚀 The backend API is ready with all required endpoints!');
+
+// Authorization testing function
+async function runAuthorizationTests(roleFilter) {
+  try {
+    if (!roleFilter || roleFilter === 'csm') {
+      console.log('\n🔍 Testing CSM Authorization...');
+      const csmResults = await testCSMAuthorization();
+      printTestResults('CSM', csmResults);
+    }
+    
+    if (!roleFilter || roleFilter === 'admin') {
+      console.log('\n🔍 Testing Admin Authorization...');
+      const adminResults = await testAdminAuthorization();
+      printTestResults('Admin', adminResults);
+    }
+    
+    if (!roleFilter || roleFilter === 'superadmin') {
+      console.log('\n🔍 Testing Superadmin Authorization...');
+      const superadminResults = await testSuperadminAuthorization();
+      printTestResults('Superadmin', superadminResults);
+    }
+    
+  } catch (error) {
+    console.log('\n⚠️  Authorization tests require valid JWT tokens');
+    console.log('Please set environment variables:');
+    console.log('  CSM_TOKEN, ADMIN_TOKEN, SUPERADMIN_TOKEN');
+    console.log('\nOr see scripts/test-authorization.js for manual testing');
+  }
+}
+
+// Print test results helper
+function printTestResults(roleName, results) {
+  const total = results.passed + results.failed;
+  const successRate = Math.round((results.passed / total) * 100);
+  
+  console.log(`\n📊 ${roleName} Test Results:`);
+  console.log(`   Tests: ${total} | Passed: ${results.passed} | Failed: ${results.failed} | Success: ${successRate}%`);
+  
+  if (results.failed > 0) {
+    console.log('   ❌ Failed tests need attention');
+  } else {
+    console.log('   ✅ All authorization checks passed');
+  }
+}

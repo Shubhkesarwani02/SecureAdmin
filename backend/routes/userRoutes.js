@@ -13,7 +13,9 @@ const {
   verifyToken, 
   requireAdmin, 
   requireAuthenticated, 
+  requireCSMOrAbove,
   canManageUser,
+  checkCSMUserAccess,
   sensitiveOperationLimit,
   canManageAllCustomers
 } = require('../middleware/auth');
@@ -26,8 +28,10 @@ router.use(verifyToken);
 // Profile routes (any authenticated user)
 router.put('/profile', updateProfile);
 
-// User listing and creation (Admin/Superadmin only)
-router.get('/', requireAdmin, getUsers);
+// User listing (CSM/Admin/Superadmin can list users based on their access level)
+router.get('/', requireCSMOrAbove, getUsers);
+
+// User creation (Admin/Superadmin only)
 router.post('/', requireAdmin, sensitiveOperationLimit, createUser);
 
 // CSM assignment routes (Admin/Superadmin only)
@@ -36,7 +40,7 @@ router.get('/:id/assignments', requireAuthenticated, getCSMAssignments);
 
 // Individual user routes
 router.route('/:id')
-  .get(requireAuthenticated, getUser)
+  .get(requireAuthenticated, checkCSMUserAccess, getUser)
   .put(requireAuthenticated, canManageUser, updateUser)
   .delete(requireAdmin, sensitiveOperationLimit, deleteUser);
 
