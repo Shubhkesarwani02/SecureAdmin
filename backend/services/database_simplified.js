@@ -429,8 +429,120 @@ const impersonationService = {
 };
 
 // =============================================
-// EXPORT ALL SERVICES
+// EXPORT ALL SERVICES WITH HELPER FUNCTIONS
 // =============================================
+
+// Helper functions for backward compatibility and cleaner controller code
+const getUserById = async (id) => {
+  return await userService.findById(id);
+};
+
+const createImpersonationLog = async (data) => {
+  return await impersonationService.start({
+    impersonatorId: data.impersonator_id,
+    impersonatedId: data.impersonated_id,
+    reason: data.reason
+  });
+};
+
+const getActiveImpersonationSession = async (impersonatorId) => {
+  const result = await query(
+    `SELECT * FROM impersonation_logs 
+     WHERE impersonator_id = $1 AND end_time IS NULL
+     ORDER BY start_time DESC
+     LIMIT 1`,
+    [impersonatorId]
+  );
+  return result.rows[0];
+};
+
+const endImpersonationSession = async (logId) => {
+  return await impersonationService.end(logId);
+};
+
+const getImpersonationLogs = async (options = {}) => {
+  const { page = 1, limit = 50, filters = {} } = options;
+  const offset = (page - 1) * limit;
+  
+  let whereClause = '';
+  let params = [];
+  let paramIndex = 1;
+  
+  if (filters.impersonator_id) {
+    whereClause += ` WHERE il.impersonator_id = $${paramIndex}`;
+    params.push(filters.impersonator_id);
+    paramIndex++;
+  }
+  
+  if (filters.impersonated_id) {
+    const connector = whereClause ? ' AND' : ' WHERE';
+    whereClause += `${connector} il.impersonated_id = $${paramIndex}`;
+    params.push(filters.impersonated_id);
+    paramIndex++;
+  }
+  
+  params.push(limit, offset);
+  
+  const result = await query(
+    `SELECT il.*, 
+            u1.email as impersonator_email, u1.role as impersonator_role,
+            u2.email as impersonated_email, u2.role as impersonated_role
+     FROM impersonation_logs il
+     INNER JOIN users u1 ON il.impersonator_id = u1.id
+     INNER JOIN users u2 ON il.impersonated_id = u2.id
+     ${whereClause}
+     ORDER BY il.start_time DESC
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    params
+  );
+  
+  return {
+    logs: result.rows,
+    page,
+    limit,
+    total: result.rowCount
+  };
+};
+
+const getUserImpersonationHistory = async (userId) => {
+  const result = await query(
+    `SELECT il.*, 
+            CASE 
+              WHEN il.impersonator_id = $1 THEN 'impersonator'
+              WHEN il.impersonated_id = $1 THEN 'impersonated'
+            END as role_in_session,
+            u1.email as impersonator_email,
+            u2.email as impersonated_email
+     FROM impersonation_logs il
+     INNER JOIN users u1 ON il.impersonator_id = u1.id
+     INNER JOIN users u2 ON il.impersonated_id = u2.id
+     WHERE il.impersonator_id = $1 OR il.impersonated_id = $1
+     ORDER BY il.start_time DESC`,
+    [userId]
+  );
+  
+  return result.rows;
+};
+
+const getActiveImpersonationSessions = async () => {
+  return await impersonationService.getActive();
+};
+
+const getImpersonationLogById = async (logId) => {
+  const result = await query(
+    `SELECT il.*, 
+            u1.email as impersonator_email,
+            u2.email as impersonated_email
+     FROM impersonation_logs il
+     INNER JOIN users u1 ON il.impersonator_id = u1.id
+     INNER JOIN users u2 ON il.impersonated_id = u2.id
+     WHERE il.id = $1`,
+    [logId]
+  );
+  
+  return result.rows[0];
+};
+
 module.exports = {
   pool,
   testConnection,
@@ -439,5 +551,14 @@ module.exports = {
   accountService,
   csmAssignmentService,
   userAccountService,
-  impersonationService
+  impersonationService,
+  // Helper functions
+  getUserById,
+  createImpersonationLog,
+  getActiveImpersonationSession,
+  endImpersonationSession,
+  getImpersonationLogs,
+  getUserImpersonationHistory,
+  getActiveImpersonationSessions,
+  getImpersonationLogById
 };

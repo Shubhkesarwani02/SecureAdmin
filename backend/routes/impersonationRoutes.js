@@ -35,7 +35,13 @@ router.get('/logs', auth, requireAdmin, ImpersonationController.getImpersonation
 router.get('/history/:userId?', auth, ImpersonationController.getUserImpersonationHistory);
 router.get('/active-sessions', auth, requireAdmin, ImpersonationController.getActiveImpersonationSessions);
 
+// Statistics and Analytics
+router.get('/stats', auth, requireAdmin, ImpersonationController.getImpersonationStats);
+
 // Admin Management
 router.post('/force-end/:sessionId', auth, requireSuperAdmin, ImpersonationController.forceEndImpersonation);
+
+// Utility Endpoints
+router.post('/validate-token', auth, ImpersonationController.validateImpersonationToken);
 
 module.exports = router;
