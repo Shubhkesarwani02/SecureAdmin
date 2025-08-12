@@ -7,7 +7,8 @@ const {
   deleteAccount,
   assignCSMToAccount,
   removeCSMFromAccount,
-  getAccountStats
+  getAccountStats,
+  getAccountUsers
 } = require('../controllers/accountController');
 const { 
   verifyToken, 
@@ -34,6 +35,7 @@ router.post('/', requireAdmin, sensitiveOperationLimit, createAccount);
 
 // Individual account routes
 router.get('/:id', requireCSMOrAbove, checkAccountAccess, getAccount);
+router.get('/:id/users', requireCSMOrAbove, checkAccountAccess, getAccountUsers);
 router.put('/:id', requireAdmin, updateAccount);
 router.delete('/:id', requireSuperAdmin, sensitiveOperationLimit, deleteAccount);
 

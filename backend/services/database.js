@@ -414,6 +414,25 @@ const csmAssignmentService = {
     );
     
     return result.rows;
+  },
+
+  // Create CSM assignment (alias for assign)
+  create: async (assignmentData) => {
+    return await csmAssignmentService.assign(assignmentData);
+  },
+
+  // Get specific CSM-account assignment
+  getByCSMAndAccount: async (csmId, accountId) => {
+    const result = await query(
+      `SELECT ca.*, a.name as account_name, u.full_name as csm_name
+       FROM csm_assignments ca
+       INNER JOIN accounts a ON ca.account_id = a.id
+       INNER JOIN users u ON ca.csm_id = u.id
+       WHERE ca.csm_id = $1 AND ca.account_id = $2`,
+      [csmId, accountId]
+    );
+    
+    return result.rows[0];
   }
 };
 
@@ -507,6 +526,126 @@ const userAccountService = {
     
     const result = await query(queryText, params);
     return result.rows;
+  },
+
+  // Create user account assignment (alias for assign)
+  create: async (assignmentData) => {
+    return await userAccountService.assign(assignmentData);
+  },
+
+  // Get specific user-account assignment
+  getByUserAndAccount: async (userId, accountId) => {
+    const result = await query(
+      `SELECT ua.*, a.name as account_name, u.full_name as user_name
+       FROM user_accounts ua
+       INNER JOIN accounts a ON ua.account_id = a.id
+       INNER JOIN users u ON ua.user_id = u.id
+       WHERE ua.user_id = $1 AND ua.account_id = $2`,
+      [userId, accountId]
+    );
+    
+    return result.rows[0];
+  },
+
+  // Get account users with pagination and filtering
+  getByAccount: async (accountId, options = {}) => {
+    const {
+      role,
+      status,
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'assigned_at',
+      sortOrder = 'DESC'
+    } = options;
+
+    let whereConditions = ['ua.account_id = $1', 'u.status != $2'];
+    let params = [accountId, 'deleted'];
+    let paramIndex = 3;
+
+    // Add role filter
+    if (role) {
+      if (Array.isArray(role)) {
+        const placeholders = role.map(() => `$${paramIndex++}`).join(',');
+        whereConditions.push(`u.role IN (${placeholders})`);
+        params.push(...role);
+      } else {
+        whereConditions.push(`u.role = $${paramIndex++}`);
+        params.push(role);
+      }
+    }
+
+    // Add status filter
+    if (status) {
+      whereConditions.push(`u.status = $${paramIndex++}`);
+      params.push(status);
+    }
+
+    // Add search filter
+    if (search) {
+      whereConditions.push(`(
+        u.full_name ILIKE $${paramIndex} OR 
+        u.email ILIKE $${paramIndex}
+      )`);
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const whereClause = whereConditions.join(' AND ');
+    const validSortColumns = ['assigned_at', 'user_name', 'user_email', 'user_role'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'assigned_at';
+    const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM user_accounts ua
+      INNER JOIN users u ON ua.user_id = u.id
+      WHERE ${whereClause}
+    `;
+
+    // Data query
+    const dataQuery = `
+      SELECT 
+        ua.*,
+        u.full_name as user_name,
+        u.email as user_email,
+        u.role as user_role,
+        u.status as user_status,
+        u.department,
+        u.created_at as user_created_at
+      FROM user_accounts ua
+      INNER JOIN users u ON ua.user_id = u.id
+      WHERE ${whereClause}
+      ORDER BY ${sortColumn === 'user_name' ? 'u.full_name' : 
+                sortColumn === 'user_email' ? 'u.email' :
+                sortColumn === 'user_role' ? 'u.role' : 'ua.assigned_at'} ${order}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    const limit_val = Math.min(limit, 100);
+    const offset = (page - 1) * limit_val;
+    params.push(limit_val, offset);
+
+    const [countResult, dataResult] = await Promise.all([
+      query(countQuery, params.slice(0, -2)),
+      query(dataQuery, params)
+    ]);
+
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit_val);
+
+    return {
+      users: dataResult.rows,
+      pagination: {
+        page,
+        limit: limit_val,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    };
   }
 };
 

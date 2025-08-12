@@ -103,6 +103,8 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/roles', require('./routes/roleRoutes'));
+app.use('/api/impersonate', require('./routes/impersonationRoutes'));
 
 // Handle 404 errors
 app.use(notFound);
@@ -129,13 +131,15 @@ const startServer = async () => {
       console.log('  🔐 Authentication: /api/auth');
       console.log('  👥 Users: /api/users');
       console.log('  🏢 Accounts: /api/accounts');
-      console.log('  � Assignments: /api/assignments');
-      console.log('  �📊 Dashboard: /api/dashboard');
+      console.log('  📝 Assignments: /api/assignments');
+      console.log('  📊 Dashboard: /api/dashboard');
       console.log('  📋 Audit: /api/audit');
       console.log('  🚗 Vehicles: /api/vehicles');
       console.log('  👤 Clients: /api/clients');
       console.log('  ⚙️  Admin: /api/admin');
       console.log('  🔔 Notifications: /api/notifications');
+      console.log('  🎭 Roles: /api/roles');
+      console.log('  👥 Impersonation: /api/impersonate');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

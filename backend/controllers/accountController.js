@@ -628,6 +628,93 @@ const getAccountStats = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get users assigned to an account
+// @route   GET /api/accounts/:id/users
+// @access  Private (CSM if assigned, Admin, Superadmin)
+const getAccountUsers = asyncHandler(async (req, res) => {
+  const { id: accountId } = req.params;
+  const {
+    role,
+    status,
+    page = 1,
+    limit = 10,
+    search,
+    sortBy = 'created_at',
+    sortOrder = 'DESC'
+  } = req.query;
+
+  const currentUserId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  // Check if account exists
+  const account = await accountService.findById(accountId);
+  if (!account) {
+    return res.status(404).json({
+      success: false,
+      message: 'Account not found'
+    });
+  }
+
+  // Check access permissions for CSM
+  if (currentUserRole === 'csm') {
+    const assignments = await csmAssignmentService.getByCSM(currentUserId);
+    const hasAccess = assignments.some(assignment => assignment.account_id === accountId);
+    
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Account not assigned to this CSM.'
+      });
+    }
+  }
+
+  const options = {
+    accountId,
+    role,
+    status,
+    page: parseInt(page),
+    limit: Math.min(parseInt(limit), 100),
+    search,
+    sortBy,
+    sortOrder
+  };
+
+  // Apply role-based filtering
+  if (currentUserRole === 'admin') {
+    // Admin can see CSMs and regular users, but not other admins or superadmins
+    if (role && !['csm', 'user'].includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Cannot view users with this role.'
+      });
+    }
+    if (!role) {
+      options.role = ['csm', 'user'];
+    }
+  }
+
+  const { userAccountService } = require('../services/database');
+  const result = await userAccountService.getByAccount(accountId, options);
+
+  // Log the action
+  await auditService.log({
+    userId: req.user.id,
+    impersonatorId: req.user.impersonator_id,
+    action: 'ACCOUNT_USERS_LISTED',
+    resourceType: 'ACCOUNT',
+    resourceId: accountId,
+    oldValues: null,
+    newValues: { filters: options, userRole: currentUserRole },
+    ipAddress: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+});
+
 module.exports = {
   getAccounts,
   getAccount,
@@ -636,5 +723,6 @@ module.exports = {
   deleteAccount,
   assignCSMToAccount,
   removeCSMFromAccount,
-  getAccountStats
+  getAccountStats,
+  getAccountUsers
 };
