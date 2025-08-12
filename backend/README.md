@@ -1,27 +1,65 @@
-# Framtt Superadmin Backend API
+# 🏢 Framtt Superadmin Backend API
 
-A comprehensive Node.js backend API for the Framtt Superadmin Dashboard, providing authentication, client management, vehicle management, and system monitoring capabilities.
+A comprehensive Node.js/Express.js backend API for the Framtt Superadmin Dashboard with enterprise-grade security, role-based access control, and comprehensive administrative features.
 
-## 🚀 Features
+## 📁 Project Structure
 
-- **JWT Authentication** with role-based access control
-- **Dashboard Analytics** with real-time KPIs
-- **Client Management** for rental companies
-- **Vehicle Management** with booking tracking
-- **User Administration** with permissions
-- **System Monitoring** with health checks
-- **Notification System** for real-time alerts
+```
+backend/
+├── 📁 config/           # Configuration files
+├── 📁 controllers/      # Route controllers and business logic
+├── 📁 middleware/       # Express middleware (auth, security, etc.)
+├── 📁 routes/          # API route definitions
+├── 📁 services/        # Business logic and database services
+├── 📁 utils/           # Utility functions and helpers
+├── 📁 data/            # Mock data and test fixtures
+├── 📁 tests/           # Test suites and test utilities
+├── 📁 scripts/         # Database and deployment scripts
+├── 📁 tools/           # Development and maintenance tools
+├── 📁 docs/            # Backend-specific documentation
+├── 📁 logs/            # Application logs
+├── 📄 server.js        # Main server entry point
+├── 📄 server_simplified.js # Simplified server for development
+└── 📄 package.json     # Dependencies and scripts
+```
+
+## 🚀 Core Features
+
+### 🔐 Authentication & Security
+- **JWT Authentication** with role-based access control (RBAC)
+- **Impersonation System** for admin user management
+- **Rate Limiting** and DDoS protection
+- **Security Middleware** with input validation
+- **Session Management** with automatic token rotation
+
+### 👥 User & Role Management
+- **Multi-tier Role System**: SuperAdmin → Admin → CSM → User
+- **User Administration** with detailed permissions
+- **Account Assignment** logic for CSMs and clients
+- **Audit Logging** for all user actions
+
+### 🏢 Client & Vehicle Management
+- **Client (Rental Company) Management**
+- **Vehicle Fleet Management** with real-time tracking
+- **Booking & Assignment System**
 - **Integration Code Management** for API access
-- **Admin Settings** and configuration management
 
-## 📋 Prerequisites
+### 📊 Analytics & Monitoring
+- **Dashboard KPIs** with real-time metrics
+- **System Health Monitoring**
+- **Performance Analytics**
+- **Notification System** for alerts
 
-- Node.js 16.0.0 or higher
+## �️ Installation & Setup
+
+### Prerequisites
+- Node.js 18.0.0 or higher
 - npm or yarn package manager
+- PostgreSQL/Supabase database
 
-## 🛠️ Installation
+### Quick Start
 
-1. **Clone the repository and navigate to backend folder:**
+1. **Navigate to backend directory:**
    ```bash
    cd backend
    ```
