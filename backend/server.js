@@ -29,6 +29,7 @@ const vehicleRoutes = require('./routes/vehicleRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const accountHealthRoutes = require('./routes/accountHealthRoutes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/errorHandler');
@@ -156,6 +157,7 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', require('./routes/roleRoutes'));
+app.use('/api/account-health', accountHealthRoutes);
 
 // Apply general rate limiting to all API routes
 app.use('/api', generalLimiter);

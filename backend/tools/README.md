@@ -75,6 +75,20 @@ node tools/security-audit.js [scan-type]
 - Configuration security checks
 - Generate security reports
 
+#### `test-account-health.js`
+Account health API endpoint testing tool.
+
+**Usage:**
+```bash
+node tools/test-account-health.js
+```
+
+**Features:**
+- Test all account health endpoints
+- Verify authentication and authorization
+- Check response formats and status codes
+- Generate test reports
+
 ## 🚀 Quick Start
 
 ### Run All Security Checks
