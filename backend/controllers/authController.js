@@ -244,13 +244,18 @@ const login = asyncHandler(async (req, res) => {
     success: true,
     message: 'Login successful',
     data: {
-      token: accessToken,
+  // Provide both keys so existing tests using token continue to work while frontend expects accessToken
+  token: accessToken,
+  accessToken,
       user: {
         id: user.id,
-        fullName: user.full_name,
+  // Provide both camelCase and snake_case keys for frontend compatibility
+  fullName: user.full_name,
+  full_name: user.full_name,
         email: user.email,
         role: user.role,
         department: user.department,
+  status: user.status, // include status so frontend can evaluate active state
         permissions: user.permissions,
         avatar: user.avatar,
         preferences: user.preferences,
@@ -308,7 +313,8 @@ const refreshToken = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: {
-      token: newAccessToken
+  token: newAccessToken,
+  accessToken: newAccessToken
     }
   });
 });
@@ -329,18 +335,27 @@ const getMe = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      role: user.role,
-      department: user.department,
-      permissions: user.permissions,
-      avatar: user.avatar,
-      bio: user.bio,
-      phone: user.phone,
-      preferences: user.preferences,
-      createdAt: user.createdAt,
-      lastLogin: user.lastLogin
+      user: {
+        id: user.id,
+        // Provide both naming conventions to avoid frontend mismatch
+        fullName: user.full_name,
+        full_name: user.full_name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        status: user.status,
+        permissions: user.permissions,
+        avatar: user.avatar,
+        bio: user.bio,
+        phone: user.phone,
+        preferences: user.preferences,
+        createdAt: user.created_at,
+        created_at: user.created_at,
+        updatedAt: user.updated_at,
+        updated_at: user.updated_at,
+        lastLogin: user.last_login,
+        last_login: user.last_login
+      }
     }
   });
 });
