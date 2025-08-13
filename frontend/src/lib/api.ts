@@ -283,6 +283,66 @@ class ApiClient {
     return this.request('/dashboard/metrics');
   }
 
+  // Account Health methods
+  async getAccountHealthOverview(): Promise<ApiResponse<any>> {
+    return this.request('/account-health/overview');
+  }
+
+  async getAccountHealthScores(params?: {
+    riskLevel?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<ApiResponse<any[]>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const endpoint = `/account-health/scores${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async getAccountHealthAlerts(params?: {
+    status?: string;
+    severity?: string;
+    clientId?: string | number;
+    alertType?: string;
+  }): Promise<ApiResponse<any[]>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const endpoint = `/account-health/alerts${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async acknowledgeAccountHealthAlert(alertId: number | string, acknowledgedBy?: string): Promise<ApiResponse<any>> {
+    return this.request(`/account-health/alerts/${alertId}/acknowledge`, {
+      method: 'POST',
+      body: JSON.stringify({ acknowledgedBy }),
+    });
+  }
+
+  async resolveAccountHealthAlert(alertId: number | string, resolvedBy?: string): Promise<ApiResponse<any>> {
+    return this.request(`/account-health/alerts/${alertId}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ resolvedBy }),
+    });
+  }
+
+  async refreshAccountHealthScores(): Promise<ApiResponse<any>> {
+    return this.request('/account-health/refresh-scores', {
+      method: 'POST',
+    });
+  }
+
   // Audit methods
   async getAuditLogs(params?: {
     page?: number;

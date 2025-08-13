@@ -2,10 +2,11 @@
 
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom"
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger } from "./components/ui/sidebar"
-import { BarChart3, Users, Activity, CreditCard, Code, Settings, Shield, Bell, User, LogOut, UserCog, UserCheck } from "lucide-react"
+import { BarChart3, Users, Activity, CreditCard, Code, Settings, Shield, Bell, User, LogOut, UserCog, UserCheck, HeartPulse } from "lucide-react"
 import { OverviewDashboard } from "./components/OverviewDashboard"
 import { ClientManagement } from "./components/ClientManagement"
 import { SystemMonitoring } from "./components/SystemMonitoring"
+import { AccountHealth } from "./components/AccountHealth"
 import { PaymentsBilling } from "./components/PaymentsBilling"
 import { SnippetManager } from "./components/SnippetManager"
 import { AdminSettings } from "./components/AdminSettings"
@@ -54,6 +55,13 @@ const menuItems = [
     path: "/users",
     key: "users",
     description: "Manage users and roles"
+  },
+  {
+    title: "Account Health",
+    icon: HeartPulse,
+    path: "/account-health",
+    key: "account-health",
+    description: "Proactive client health monitoring"
   },
   {
     title: "System Monitoring",
@@ -143,10 +151,13 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
           // Only admins and superadmins can see impersonation history
           return ['admin', 'superadmin'].includes(userProfile.role)
         case 'settings':
-          // Only superadmins can see admin settings
-          return userProfile.role === 'superadmin'
+          // Admins and superadmins can see admin settings
+          return ['admin', 'superadmin'].includes(userProfile.role)
         case 'monitoring':
           // Only admins and superadmins can see system monitoring
+          return ['admin', 'superadmin'].includes(userProfile.role)
+        case 'account-health':
+          // Visible to admins and superadmins
           return ['admin', 'superadmin'].includes(userProfile.role)
         case 'payments':
           // Only admins and superadmins can see payments
@@ -476,6 +487,7 @@ function DashboardContent() {
               <Route path="/overview" element={<Navigate to="/" replace />} />
               <Route path="/clients" element={<ClientManagement />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/account-health" element={<AccountHealth />} />
               <Route path="/monitoring" element={<SystemMonitoring />} />
               <Route path="/payments" element={<PaymentsBilling />} />
               <Route path="/snippets" element={<SnippetManager />} />

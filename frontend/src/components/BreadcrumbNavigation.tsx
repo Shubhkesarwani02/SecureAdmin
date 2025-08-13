@@ -13,6 +13,11 @@ const menuItems = [
     key: "clients"
   },
   {
+    title: "Account Health",
+    path: "/account-health",
+    key: "account-health"
+  },
+  {
     title: "System Monitoring",
     path: "/monitoring",
     key: "monitoring"
