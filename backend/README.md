@@ -19,7 +19,7 @@ backend/
 ├── 📁 docs/            # Backend-specific documentation
 ├── 📁 logs/            # Application logs
 ├── 📄 server.js        # Main server entry point
-├── 📄 server_simplified.js # Simplified server for development
+├── 📄 server.js        # Main server entry point
 └── 📄 package.json     # Dependencies and scripts
 ```
 
