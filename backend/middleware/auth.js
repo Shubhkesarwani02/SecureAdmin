@@ -60,40 +60,49 @@ const verifyToken = async (req, res, next) => {
       session_id: decoded.session_id || null
     };
 
-    // Log API access for audit purposes
-    await auditService.log({
-      userId: req.user.id,
-      impersonatorId: req.user.impersonator_id,
-      action: 'API_ACCESS',
-      resourceType: 'API',
-      resourceId: `${req.method} ${req.path}`,
-      oldValues: null,
-      newValues: { 
-        method: req.method, 
-        path: req.path, 
-        query: req.query,
-        isImpersonation: req.user.is_impersonation 
-      },
-      ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.get('User-Agent')
-    });
+    // Log API access for audit purposes (avoid UUID/type crashes)
+    try {
+      await auditService.log({
+        userId: req.user.id,
+        impersonatorId: req.user.impersonator_id,
+        action: 'API_ACCESS',
+        resourceType: 'API',
+        resourceId: `${req.method} ${req.path}`,
+        oldValues: null,
+        newValues: { 
+          method: req.method, 
+          path: req.path, 
+          query: req.query,
+          isImpersonation: req.user.is_impersonation 
+        },
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get('User-Agent')
+      });
+    } catch (logError) {
+      // Do not block request flow on audit logging failures
+      console.warn('Audit log failed (non-blocking):', logError.message);
+    }
 
     next();
   } catch (error) {
-    // Log failed token verification attempts
-    await auditService.log({
-      userId: null,
-      action: 'TOKEN_VERIFICATION_FAILED',
-      resourceType: 'SECURITY',
-      resourceId: 'jwt_token',
-      oldValues: null,
-      newValues: { 
-        error: error.message,
-        tokenPrefix: token ? token.substring(0, 10) + '...' : 'none'
-      },
-      ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.get('User-Agent')
-    });
+    // Log failed token verification attempts (guarded)
+    try {
+      await auditService.log({
+        userId: null,
+        action: 'TOKEN_VERIFICATION_FAILED',
+        resourceType: 'SECURITY',
+        resourceId: 'jwt_token',
+        oldValues: null,
+        newValues: { 
+          error: error.message,
+          tokenPrefix: token ? token.substring(0, 10) + '...' : 'none'
+        },
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get('User-Agent')
+      });
+    } catch (logError) {
+      console.warn('Audit log failed (non-blocking):', logError.message);
+    }
 
     return res.status(401).json({
       success: false,

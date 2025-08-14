@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const net = require('net');
 
 // Database connection configuration
 const pool = new Pool({
@@ -26,6 +27,12 @@ const testConnection = async () => {
     console.error('❌ Database connection failed:', error.message);
     return false;
   }
+};
+
+// Utility validators
+const isValidUUID = (value) => {
+  if (typeof value !== 'string') return false;
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(value);
 };
 
 // Generic query function with error handling
@@ -986,20 +993,38 @@ const auditService = {
       userAgent
     } = logData;
 
+    // Coerce fields to match column types safely
+    const safeResourceId = isValidUUID(resourceId) ? resourceId : null;
+    const isIpValid = typeof ipAddress === 'string' && net.isIP(ipAddress) !== 0;
+
+    // Ensure JSON objects and preserve textual identifiers when types don't match
+    const oldValuesJson = (oldValues === undefined) ? null : oldValues;
+    const mergedNewValues = (() => {
+      const base = (newValues && typeof newValues === 'object') ? newValues : (newValues === undefined ? {} : { value: newValues });
+      const extras = {};
+      if (resourceId && !safeResourceId) {
+        extras.resource_identifier_text = String(resourceId).slice(0, 255);
+      }
+      if (ipAddress && !isIpValid) {
+        extras.ip_text = String(ipAddress).slice(0, 255);
+      }
+      return { ...base, ...extras };
+    })();
+
     const result = await query(
       `INSERT INTO audit_logs 
        (user_id, impersonator_id, action, resource_type, resource_id, old_values, new_values, ip_address, user_agent)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
-        userId,
-        impersonatorId,
+        isValidUUID(userId) ? userId : null,
+        isValidUUID(impersonatorId) ? impersonatorId : null,
         action,
         resourceType,
-        resourceId,
-        JSON.stringify(oldValues),
-        JSON.stringify(newValues),
-        ipAddress,
+        safeResourceId,
+        oldValuesJson === null ? null : JSON.stringify(oldValuesJson),
+        JSON.stringify(mergedNewValues),
+        isIpValid ? ipAddress : null,
         userAgent
       ]
     );

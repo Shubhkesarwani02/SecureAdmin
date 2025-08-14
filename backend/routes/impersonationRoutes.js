@@ -1,47 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const ImpersonationController = require('../controllers/impersonationController');
-const auth = require('../middleware/auth');
+const { verifyToken, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 
-// Middleware to check admin permissions
-const requireAdmin = (req, res, next) => {
-    if (!['superadmin', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({
-            success: false,
-            message: 'Admin permissions required'
-        });
-    }
-    next();
-};
-
-// Middleware to check superadmin permissions
-const requireSuperAdmin = (req, res, next) => {
-    if (req.user.role !== 'superadmin') {
-        return res.status(403).json({
-            success: false,
-            message: 'Superadmin permissions required'
-        });
-    }
-    next();
-};
+// Apply authentication to all routes
+router.use(verifyToken);
 
 // Impersonation Session Management
-router.post('/start', auth, requireAdmin, ImpersonationController.startImpersonation);
-router.post('/end', auth, ImpersonationController.endImpersonation);
-router.get('/status', auth, ImpersonationController.getImpersonationStatus);
+router.post('/start', requireAdmin, ImpersonationController.startImpersonation);
+router.post('/end', ImpersonationController.endImpersonation);
+router.get('/status', ImpersonationController.getImpersonationStatus);
 
 // Impersonation Logs and History
-router.get('/logs', auth, requireAdmin, ImpersonationController.getImpersonationLogs);
-router.get('/history/:userId?', auth, ImpersonationController.getUserImpersonationHistory);
-router.get('/active-sessions', auth, requireAdmin, ImpersonationController.getActiveImpersonationSessions);
+router.get('/logs', requireAdmin, ImpersonationController.getImpersonationLogs);
+router.get('/history/:userId?', ImpersonationController.getUserImpersonationHistory);
+router.get('/active-sessions', requireAdmin, ImpersonationController.getActiveImpersonationSessions);
 
 // Statistics and Analytics
-router.get('/stats', auth, requireAdmin, ImpersonationController.getImpersonationStats);
+router.get('/stats', requireAdmin, ImpersonationController.getImpersonationStats);
 
 // Admin Management
-router.post('/force-end/:sessionId', auth, requireSuperAdmin, ImpersonationController.forceEndImpersonation);
+router.post('/force-end/:sessionId', requireSuperAdmin, ImpersonationController.forceEndImpersonation);
 
 // Utility Endpoints
-router.post('/validate-token', auth, ImpersonationController.validateImpersonationToken);
+router.post('/validate-token', ImpersonationController.validateImpersonationToken);
 
 module.exports = router;
