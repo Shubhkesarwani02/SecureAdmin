@@ -2,7 +2,11 @@
 
 A comprehensive superadmin dashboard for managing rental companies on the Framtt platform. Built with React 18, TypeScript, Tailwind CSS, and Express.js with enterprise-grade security and role-based access control.
 
-## 📁 Organized Project Structure
+## 📁 Project Organization
+
+> **📋 See [ORGANIZATION.md](./ORGANIZATION.md) for detailed project structure and organization guidelines.**
+
+## 📁 Quick Project Structure
 
 ```
 superadmin-framtt/

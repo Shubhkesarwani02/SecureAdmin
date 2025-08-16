@@ -19,8 +19,12 @@ Backend API endpoints and specifications:
 
 ### 📊 Status Reports (`status-reports/`)
 Project status and progress tracking:
-- **Status Report** - Overall project status
+- **Account Health Integration** - Account health monitoring implementation
+- **Integration Status Report** - Status of system integrations
+- **Organization Summary** - Project organization overview
+- **Testing Complete** - Testing completion documentation
 - **Implementation Summary** - Summary of completed implementations
+- **Status Report** - Overall project status
 
 ### 🔐 Authentication & Authorization
 Core security and access control documentation:

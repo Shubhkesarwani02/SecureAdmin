@@ -26,14 +26,16 @@ The database schema is built through numbered migration scripts that should be e
 ### 📋 Schema Documentation
 - **`final_schema_specification.sql`** - Complete schema overview
 - **`schema_verification_and_update.sql`** - Schema validation and updates
-- **`../database-setup.sql`** - Root database setup script
+
+### 🛠️ Setup Scripts (`setup/`)
+- **`database-setup.sql`** - Main database setup script (moved from root)
 
 ## 🚀 Database Setup
 
 ### Quick Setup
 ```bash
 # Run the complete setup (from root directory)
-psql -d your_database -f database-setup.sql
+psql -d your_database -f setup/database-setup.sql
 
 # Or run individual migrations in order
 cd database
