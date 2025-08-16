@@ -155,6 +155,7 @@ app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/audit', require('./routes/auditRoutes'));
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', require('./routes/roleRoutes'));
 app.use('/api/account-health', accountHealthRoutes);

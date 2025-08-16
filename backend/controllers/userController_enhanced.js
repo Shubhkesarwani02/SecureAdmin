@@ -635,6 +635,62 @@ const updateProfile = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get user statistics
+// @route   GET /api/users/stats
+// @access  Private (Admin/Superadmin)
+const getUserStats = asyncHandler(async (req, res) => {
+  const currentUserRole = req.user.role;
+
+  if (!['admin', 'superadmin'].includes(currentUserRole)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Only admins can view user statistics.'
+    });
+  }
+
+  try {
+    const { query } = require('../services/database');
+    
+    const statsResult = await query(`
+      SELECT 
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_users,
+        COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_users,
+        COUNT(CASE WHEN role = 'superadmin' THEN 1 END) as superadmin_count,
+        COUNT(CASE WHEN role = 'admin' THEN 1 END) as admin_count,
+        COUNT(CASE WHEN role = 'csm' THEN 1 END) as csm_count,
+        COUNT(CASE WHEN role = 'user' THEN 1 END) as user_count,
+        COUNT(CASE WHEN last_login >= NOW() - INTERVAL '7 days' THEN 1 END) as recently_active
+      FROM users 
+      WHERE status != 'deleted'
+    `);
+
+    const stats = statsResult.rows[0];
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total: parseInt(stats.total_users),
+        active: parseInt(stats.active_users),
+        inactive: parseInt(stats.inactive_users),
+        byRole: {
+          superadmin: parseInt(stats.superadmin_count),
+          admin: parseInt(stats.admin_count),
+          csm: parseInt(stats.csm_count),
+          user: parseInt(stats.user_count)
+        },
+        recentlyActive: parseInt(stats.recently_active)
+      }
+    });
+  } catch (error) {
+    console.error('Error getting user stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving user statistics'
+    });
+  }
+});
+
 module.exports = {
   getUsers,
   getUser,
@@ -643,5 +699,6 @@ module.exports = {
   deleteUser,
   assignCSMToAccounts,
   getCSMAssignments,
-  updateProfile
+  updateProfile,
+  getUserStats
 };
