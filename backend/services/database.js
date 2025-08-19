@@ -747,7 +747,7 @@ const impersonationService = {
     await query(
       `UPDATE impersonation_logs 
        SET end_time = NOW(), is_active = FALSE 
-       WHERE impersonator_id = $1 AND is_active = TRUE`,
+       WHERE impersonator_id::bigint = $1 AND is_active = TRUE`,
       [impersonatorId]
     );
 
@@ -776,7 +776,7 @@ const impersonationService = {
     const result = await query(
       `UPDATE impersonation_logs 
        SET end_time = NOW(), is_active = FALSE 
-       WHERE impersonator_id = $1 AND session_id = $2 AND is_active = TRUE
+       WHERE impersonator_id::bigint = $1 AND session_id = $2 AND is_active = TRUE
        RETURNING *`,
       [impersonatorId, sessionId]
     );
@@ -797,11 +797,14 @@ const impersonationService = {
   // Get active impersonation sessions
   getActive: async (impersonatorId) => {
     const result = await query(
-      `SELECT il.*, u.full_name as impersonated_name, u.email as impersonated_email
+      `SELECT il.*, 
+              il.created_at as start_time,
+              il.ended_at as end_time,
+              u.full_name as impersonated_name, u.email as impersonated_email
        FROM impersonation_logs il
-       INNER JOIN users u ON il.impersonated_id = u.id
-       WHERE il.impersonator_id = $1 AND il.is_active = TRUE
-       ORDER BY il.start_time DESC`,
+       INNER JOIN users u ON il.impersonated_id::bigint = u.id
+       WHERE il.impersonator_id::bigint = $1 AND il.is_active = TRUE
+       ORDER BY il.created_at DESC`,
       [impersonatorId]
     );
     
@@ -819,52 +822,72 @@ const impersonationService = {
       endDate
     } = options;
 
+    console.log('DEBUG getHistory - Input options:', JSON.stringify(options, null, 2));
+    console.log('DEBUG getHistory - impersonatorId type:', typeof impersonatorId, 'value:', impersonatorId);
+
     let whereClause = 'WHERE 1=1';
     const params = [];
     let paramCount = 1;
 
     if (impersonatorId) {
-      whereClause += ` AND il.impersonator_id = $${paramCount}`;
+      whereClause += ` AND il.impersonator_id::bigint = $${paramCount}`;
       params.push(impersonatorId);
       paramCount++;
     }
 
     if (impersonatedId) {
-      whereClause += ` AND il.impersonated_id = $${paramCount}`;
+      whereClause += ` AND il.impersonated_id::bigint = $${paramCount}`;
       params.push(impersonatedId);
       paramCount++;
     }
 
     if (startDate) {
-      whereClause += ` AND il.start_time >= $${paramCount}`;
+      whereClause += ` AND il.created_at >= $${paramCount}`;
       params.push(startDate);
       paramCount++;
     }
 
     if (endDate) {
-      whereClause += ` AND il.start_time <= $${paramCount}`;
+      whereClause += ` AND il.created_at <= $${paramCount}`;
       params.push(endDate);
       paramCount++;
     }
 
     const offset = (page - 1) * limit;
     
+    console.log('DEBUG getHistory - whereClause:', whereClause);
+    console.log('DEBUG getHistory - params:', params);
+    console.log('DEBUG getHistory - param types:', params.map(p => typeof p));
+    
+    const countQuery = `SELECT COUNT(*) as total
+       FROM impersonation_logs il
+       INNER JOIN users imp ON il.impersonator_id::bigint = imp.id
+       INNER JOIN users imp_ed ON il.impersonated_id::bigint = imp_ed.id
+       ${whereClause}`;
+       
+    console.log('DEBUG getHistory - count query:', countQuery);
+    
+    // First get the total count
+    const countResult = await query(countQuery, params);
+    
     const result = await query(
       `SELECT il.*, 
+              il.created_at as start_time,
+              il.ended_at as end_time,
               imp.full_name as impersonator_name, imp.email as impersonator_email,
               imp_ed.full_name as impersonated_name, imp_ed.email as impersonated_email
        FROM impersonation_logs il
-       INNER JOIN users imp ON il.impersonator_id = imp.id
-       INNER JOIN users imp_ed ON il.impersonated_id = imp_ed.id
+       INNER JOIN users imp ON il.impersonator_id::bigint = imp.id
+       INNER JOIN users imp_ed ON il.impersonated_id::bigint = imp_ed.id
        ${whereClause}
-       ORDER BY il.start_time DESC
+       ORDER BY il.created_at DESC
        LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
       [...params, limit, offset]
     );
 
     return {
       logs: result.rows,
-      total: result.rows.length
+      total: parseInt(countResult.rows[0].total)
     };
   },
 
@@ -963,10 +986,10 @@ const impersonationService = {
               imp.full_name as impersonator_name, imp.email as impersonator_email,
               imp_ed.full_name as impersonated_name, imp_ed.email as impersonated_email
        FROM impersonation_logs il
-       INNER JOIN users imp ON il.impersonator_id = imp.id
-       INNER JOIN users imp_ed ON il.impersonated_id = imp_ed.id
-       WHERE (il.impersonator_id = $1 OR il.impersonated_id = $1) AND il.is_active = TRUE
-       ORDER BY il.start_time DESC
+       INNER JOIN users imp ON il.impersonator_id::bigint = imp.id
+       INNER JOIN users imp_ed ON il.impersonated_id::bigint = imp_ed.id
+       WHERE (il.impersonator_id::bigint = $1 OR il.impersonated_id::bigint = $1) AND il.is_active = TRUE
+       ORDER BY il.created_at DESC
        LIMIT 1`,
       [userId]
     );
