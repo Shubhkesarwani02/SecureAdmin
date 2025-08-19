@@ -32,7 +32,7 @@ const verifyToken = async (req, res, next) => {
     }
     
     // Validate token structure and required claims
-    if (!decoded.id || !decoded.email || !decoded.role || decoded.type !== 'access') {
+    if (!decoded.id || !decoded.email || !decoded.role || (decoded.type !== 'access' && decoded.type !== 'impersonation')) {
       return res.status(401).json({
         success: false,
         message: 'Invalid token structure.'

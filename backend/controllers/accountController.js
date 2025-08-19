@@ -62,7 +62,12 @@ const getAccounts = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: result
+    data: result.accounts || result,
+    pagination: result.total ? {
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages
+    } : undefined
   });
 });
 

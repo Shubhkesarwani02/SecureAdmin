@@ -75,6 +75,21 @@ CREATE TABLE impersonation_logs (
 );
 
 -- =============================================
+-- 6. REFRESH_TOKENS TABLE
+-- =============================================
+-- Drop existing table if it exists and recreate
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
+
+CREATE TABLE refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(256) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_revoked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================
 -- INDEXES FOR PERFORMANCE
 -- =============================================
 
@@ -98,6 +113,11 @@ CREATE INDEX idx_user_accounts_account_id ON user_accounts(account_id);
 -- Impersonation logs indexes
 CREATE INDEX idx_impersonation_logs_impersonator_id ON impersonation_logs(impersonator_id);
 CREATE INDEX idx_impersonation_logs_impersonated_id ON impersonation_logs(impersonated_id);
+
+-- Refresh tokens indexes
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX idx_refresh_tokens_is_revoked ON refresh_tokens(is_revoked);
 CREATE INDEX idx_impersonation_logs_start_time ON impersonation_logs(start_time);
 CREATE INDEX idx_impersonation_logs_end_time ON impersonation_logs(end_time);
 

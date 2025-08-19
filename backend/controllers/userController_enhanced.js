@@ -81,7 +81,12 @@ const getUsers = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: result
+    data: result.users || result,
+    pagination: result.total ? {
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages
+    } : undefined
   });
 });
 

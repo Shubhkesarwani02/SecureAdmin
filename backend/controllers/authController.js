@@ -600,7 +600,7 @@ const startImpersonation = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/impersonate/stop
 // @access  Private (Impersonation token required)
 const stopImpersonation = asyncHandler(async (req, res) => {
-  const { sessionId } = req.body;
+  const sessionId = req.body.sessionId || req.user.session_id;
   const impersonatorId = req.user.impersonator_id;
   const ipAddress = req.ip || req.connection.remoteAddress;
   const userAgent = req.get('User-Agent');

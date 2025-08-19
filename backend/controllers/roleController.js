@@ -127,10 +127,10 @@ const assignRole = asyncHandler(async (req, res) => {
           });
         }
 
-        await csmAssignmentService.create({
-          csm_id: userId,
-          account_id: accountId,
-          assigned_by: currentUserId
+        await csmAssignmentService.assign({
+          csmId: userId,
+          accountId: accountId,
+          assignedBy: currentUserId
         });
 
         // Log the action
@@ -166,10 +166,10 @@ const assignRole = asyncHandler(async (req, res) => {
           });
         }
 
-        await userAccountService.create({
-          user_id: userId,
-          account_id: accountId,
-          assigned_by: currentUserId
+        await userAccountService.assign({
+          userId: userId,
+          accountId: accountId,
+          assignedBy: currentUserId
         });
 
         // Log the action

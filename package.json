@@ -33,5 +33,9 @@
     "node"
   ],
   "author": "Framtt Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
+    "dotenv": "^17.2.1"
+  }
 }

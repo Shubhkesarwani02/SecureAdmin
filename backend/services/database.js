@@ -3,17 +3,28 @@ const bcrypt = require('bcryptjs');
 const net = require('net');
 
 // Database connection configuration
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'framtt_superadmin',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'password',
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+// Use DATABASE_URL if available, otherwise fall back to individual parameters
+const pool = new Pool(
+  process.env.DATABASE_URL ? 
+  {
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  } :
+  {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || 'framtt_superadmin',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'password',
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  }
+);
 
 // Test database connection
 const testConnection = async () => {
@@ -332,7 +343,7 @@ const accountService = {
     let paramCount = 2;
 
     if (search) {
-      whereClause += ` AND (a.name ILIKE $${paramCount} OR a.company_name ILIKE $${paramCount} OR a.email ILIKE $${paramCount})`;
+      whereClause += ` AND (a.name ILIKE $${paramCount} OR a.company_name ILIKE $${paramCount} OR a.contact_email ILIKE $${paramCount})`;
       params.push(`%${search}%`);
       paramCount++;
     }
@@ -409,7 +420,7 @@ const csmAssignmentService = {
   // Get CSM assignments
   getByCSM: async (csmId) => {
     const result = await query(
-      `SELECT ca.*, a.name as account_name, a.company_name, a.email as account_email
+      `SELECT ca.*, a.name as account_name, a.company_name, a.contact_email as account_email
        FROM csm_assignments ca
        INNER JOIN accounts a ON ca.account_id = a.id
        WHERE ca.csm_id = $1 AND a.status != 'deleted'
@@ -433,7 +444,7 @@ const csmAssignmentService = {
   // Get accounts by CSM
   getAccountsByCSM: async (csmId) => {
     const result = await query(
-      `SELECT ca.*, a.name as account_name, a.company_name, a.email as account_email, a.status as account_status
+      `SELECT ca.*, a.name as account_name, a.company_name, a.contact_email as account_email, a.status as account_status
        FROM csm_assignments ca
        INNER JOIN accounts a ON ca.account_id = a.id
        WHERE ca.csm_id = $1 AND a.status != 'deleted'
@@ -461,7 +472,7 @@ const csmAssignmentService = {
   // Get unassigned accounts (accounts without CSM assignments)
   getUnassignedAccounts: async () => {
     const result = await query(
-      `SELECT a.id, a.name, a.company_name, a.email, a.status, a.subscription_plan, a.created_at
+      `SELECT a.id, a.name, a.company_name, a.contact_email, a.status, a.created_at
        FROM accounts a
        LEFT JOIN csm_assignments ca ON a.id = ca.account_id
        WHERE a.status = 'active' AND ca.account_id IS NULL
@@ -527,7 +538,7 @@ const userAccountService = {
   // Get user account assignments
   getByUser: async (userId) => {
     const result = await query(
-      `SELECT ua.*, a.name as account_name, a.company_name, a.email as account_email
+      `SELECT ua.*, a.name as account_name, a.company_name, a.contact_email as account_email
        FROM user_accounts ua
        INNER JOIN accounts a ON ua.account_id = a.id
        WHERE ua.user_id = $1 AND a.status != 'deleted'

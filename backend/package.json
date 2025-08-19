@@ -17,6 +17,8 @@
   "author": "Framtt Team",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
+    "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "chalk": "^4.1.2",
