@@ -12,6 +12,13 @@ interface ApiSuccess<T = any> {
   success: true;
   data: T;
   message?: string;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 type ApiResponse<T = any> = ApiSuccess<T> | ApiError;
@@ -195,12 +202,7 @@ class ApiClient {
     search?: string;
     role?: string;
     status?: string;
-  }): Promise<ApiResponse<{
-    users: any[];
-    total: number;
-    page: number;
-    totalPages: number;
-  }>> {
+  }): Promise<ApiResponse<any[]>> {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

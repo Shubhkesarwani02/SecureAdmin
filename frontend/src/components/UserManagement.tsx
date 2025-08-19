@@ -44,8 +44,8 @@ interface User {
   role: string
   department?: string
   status: string
-  created_at: string
-  last_login?: string
+  createdAt: string
+  lastLogin?: string
 }
 
 export const UserManagement: React.FC = () => {
@@ -75,15 +75,25 @@ export const UserManagement: React.FC = () => {
       })
       
       if (response.success) {
-        setUsers(response.data.users)
-        setTotalUsers(response.data.total)
-        setTotalPages(response.data.totalPages)
+        // Map backend format to frontend format
+        const mappedUsers = (response.data || []).map((user: any) => ({
+          ...user,
+          id: String(user.id),
+          full_name: user.fullName || user.full_name,
+          createdAt: user.createdAt || user.created_at,
+          lastLogin: user.lastLogin || user.last_login
+        }))
+        setUsers(mappedUsers)
+        setTotalUsers(response.pagination?.totalItems || 0)
+        setTotalPages(response.pagination?.totalPages || 0)
       } else {
         setError(response.message)
+        setUsers([]) // Reset users to empty array on error
       }
     } catch (err) {
       console.error('Error loading users:', err)
       setError('Failed to load users')
+      setUsers([]) // Reset users to empty array on error
     } finally {
       setLoading(false)
     }
@@ -262,14 +272,14 @@ export const UserManagement: React.FC = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ) : users.length === 0 ? (
+                ) : !users || users.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No users found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  users.map((user) => (
+                  (users || []).map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="space-y-1">
@@ -291,7 +301,7 @@ export const UserManagement: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">{formatDateTime(user.last_login)}</span>
+                        <span className="text-sm">{formatDateTime(user.lastLogin)}</span>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
