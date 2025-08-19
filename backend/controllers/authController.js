@@ -105,11 +105,16 @@ const generateAccessToken = (user, impersonationData = null) => {
     payload.type = 'impersonation';
   }
 
+  // Use specific timeout for impersonation tokens
+  const expiresIn = impersonationData 
+    ? `${process.env.IMPERSONATION_TIMEOUT_HOURS || '1'}h`
+    : process.env.JWT_EXPIRE || '1h';
+
   return jwt.sign(
     payload,
     process.env.JWT_SECRET || 'fallback-secret-key',
     { 
-      expiresIn: process.env.JWT_EXPIRE || '1h',
+      expiresIn,
       issuer: 'framtt-superadmin',
       audience: 'framtt-users'
     }

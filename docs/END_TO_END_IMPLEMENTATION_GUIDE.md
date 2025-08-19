@@ -33,6 +33,8 @@ Notes:
 - The frontend stores the access token in `localStorage` and attaches it to `Authorization: Bearer <token>` for API calls.
 - Refresh tokens are httpOnly cookies managed by the backend.
 
+For a deeper, step-by-step guide (including Windows quick-start scripts, Postman setup, verification scripts, and deployment playbooks), see `docs/END_TO_END_IMPLEMENTATION_DETAILED.md`.
+
 ---
 
 ## 1) Prerequisites
@@ -106,6 +108,26 @@ Note: Scripts include `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";` which Supaba
 
 ---
 
+### Quick Start (Windows)
+
+Use the provided scripts from project root for a fast local setup:
+
+```bat
+:: From project root
+scripts\dev-windows.bat
+```
+
+This will:
+- Start backend on port 5000 (expects `backend/.env` configured)
+- Start frontend on port 5173
+
+Alternatively, start services manually:
+
+```bat
+cd backend && npm install && npm run start
+cd ..\frontend && npm install && npm run dev
+```
+
 ## 4) Backend (Node/Express)
 
 Entry: `backend/server.js`
@@ -147,6 +169,11 @@ Middleware in `backend/middleware/auth.js`:
 
 Role hierarchy: `superadmin > admin > csm > user`.
 
+Other API groups available (see `backend/routes/*`):
+- Clients: `/api/clients` (admin/superadmin)
+- Vehicles: `/api/vehicles` (admin/superadmin)
+- Dashboard, notifications, roles, and audit endpoints
+
 ### Impersonation
 Endpoints in `backend/routes/authRoutes.js` and controller `authController.js`:
 - Start: `POST /api/auth/impersonate/start` (admin/superadmin)
@@ -166,11 +193,20 @@ Impersonation tokens carry `is_impersonation`, `impersonator_id`, `impersonated_
   - CSM sees only assigned accounts; Admin/Superadmin see all.
   - Create/Update/Delete (soft delete by superadmin), assign/remove CSM, list account users.
 
+Clients and Vehicles:
+- Clients: `backend/routes/clientRoutes.js`
+- Vehicles: `backend/routes/vehicleRoutes.js`
+
 ### Security
 - Rate limiting by route category.
 - Security headers and input sanitization.
 - JWT secret rotation helper and token blacklist support.
 - Audit logs for sensitive events (login, impersonation, rate-limit violations, admin actions).
+
+JWT secret rotation:
+```bash
+node backend/scripts/rotate-jwt-secret.js
+```
 
 ---
 
@@ -209,6 +245,8 @@ Fetching accounts via API client:
 const res = await apiClient.getAccounts({ page: 1, limit: 10 })
 // CSM → only assigned accounts; Admin/Superadmin → all accounts
 ```
+
+Postman collection (optional): import `Framtt_Superadmin_API_Collection.postman_collection.json` and environment `Framtt_Superadmin_Environment.postman_environment.json`. Set the `baseUrl` and auth variables as needed.
 
 ---
 
@@ -308,6 +346,25 @@ These are enforced in `backend/middleware/auth.js` and by SQL relationships.
 - Impersonation denied: Validate role hierarchy rules; target must be `active` and not already impersonated.
 - CORS blocked: Add your frontend origin to `ALLOWED_ORIGINS`.
 
+Verification scripts (from project root):
+```bash
+# Connectivity and schema
+node test-basic-connectivity.js
+node verify-database-schema.js
+
+# Authentication and authorization
+node test-login.js
+node verify-authorization-logic.js
+node final-authorization-verification.js
+
+# Endpoints
+node verify-api-endpoints.js
+node test-api-integration.js
+
+# Comprehensive
+node final-comprehensive-verification.js
+```
+
 ---
 
 ## 11) Key files (reference)
@@ -329,5 +386,7 @@ These are enforced in `backend/middleware/auth.js` and by SQL relationships.
   - `database/10_enhanced_schema_for_impersonation.sql` — full schema & sample data
 
 This guide reflects the working implementation verified by the comprehensive authorization tests.
+
+See also: `docs/END_TO_END_IMPLEMENTATION_DETAILED.md` for extended, step-by-step instructions, checklists, and deployment playbooks.
 
 
