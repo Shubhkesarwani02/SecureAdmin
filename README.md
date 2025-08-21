@@ -127,6 +127,28 @@ This will start:
 - Frontend development server on `http://localhost:5173`
 - Backend development server on `http://localhost:3001`
 
+## 🚀 Deployment
+
+### Quick Deployment
+For a complete deployment guide with step-by-step instructions, see:
+- **[Complete Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Detailed walkthrough
+- **[Quick Reference](./DEPLOYMENT_QUICK_REFERENCE.md)** - Essential commands and URLs
+
+### Automated Deployment
+```bash
+# Linux/Mac
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+
+# Windows
+scripts/deploy.bat
+```
+
+### Manual Deployment
+- **Frontend**: Deploy to [Vercel](https://vercel.com)
+- **Backend**: Deploy to [Render](https://render.com)
+- **Database**: Use [Supabase](https://supabase.com)
+
 ### Individual Commands
 
 **Frontend Development:**
