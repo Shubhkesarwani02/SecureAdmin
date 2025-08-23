@@ -14,6 +14,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({})
+  const [successMessage, setSuccessMessage] = useState<string>('')
   
   const { signIn, user, loading: authLoading, error: authError, clearError } = useAuth()
   const navigate = useNavigate()
@@ -26,6 +27,18 @@ export const LoginPage: React.FC = () => {
       navigate(from, { replace: true })
     }
   }, [user, authLoading, navigate, location.state])
+
+  // Handle success message from onboarding
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message)
+      if (location.state?.email) {
+        setEmail(location.state.email)
+      }
+      // Clear the state to prevent message from persisting on refresh
+      navigate(location.pathname, { replace: true })
+    }
+  }, [location.state, navigate])
 
   // Clear errors when component mounts
   useEffect(() => {
@@ -150,6 +163,12 @@ export const LoginPage: React.FC = () => {
           </CardHeader>
           
           <CardContent className="space-y-6">
+            {successMessage && (
+              <Alert className="border-green-200 bg-green-50 text-green-800">
+                <AlertDescription>{successMessage}</AlertDescription>
+              </Alert>
+            )}
+            
             {authError && (
               <Alert variant="destructive">
                 <AlertDescription>{authError}</AlertDescription>

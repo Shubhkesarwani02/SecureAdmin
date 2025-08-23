@@ -13,6 +13,16 @@ const menuItems = [
     key: "clients"
   },
   {
+    title: "User Management",
+    path: "/users",
+    key: "users"
+  },
+  {
+    title: "Invite Management",
+    path: "/invites",
+    key: "invites"
+  },
+  {
     title: "Account Health",
     path: "/account-health",
     key: "account-health"
@@ -31,6 +41,11 @@ const menuItems = [
     title: "Snippet Manager",
     path: "/snippets",
     key: "snippets"
+  },
+  {
+    title: "Impersonation History",
+    path: "/impersonation-history",
+    key: "impersonation"
   },
   {
     title: "Admin Settings",

@@ -8,10 +8,13 @@ const pool = new Pool(
   process.env.DATABASE_URL ? 
   {
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    ssl: process.env.DB_SSL === 'true' ? { 
+      rejectUnauthorized: false,
+      sslmode: 'require'
+    } : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Increased timeout
   } :
   {
     host: process.env.DB_HOST || 'localhost',
@@ -19,10 +22,13 @@ const pool = new Pool(
     database: process.env.DB_NAME || 'framtt_superadmin',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'password',
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    ssl: process.env.DB_SSL === 'true' ? { 
+      rejectUnauthorized: false,
+      sslmode: 'require'
+    } : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Increased timeout
   }
 );
 
@@ -88,17 +94,16 @@ const userService = {
       fullName,
       role,
       department,
-      phone,
-      createdBy
+      phone
     } = userData;
 
     const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
     
     const result = await query(
-      `INSERT INTO users (email, password_hash, full_name, role, department, phone, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO users (email, password_hash, full_name, role, department, phone)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, email, full_name, role, department, phone, status, created_at`,
-      [email, hashedPassword, fullName, role, department, phone, createdBy]
+      [email, hashedPassword, fullName, role, department, phone]
     );
     
     return result.rows[0];

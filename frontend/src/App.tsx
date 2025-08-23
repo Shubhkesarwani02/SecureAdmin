@@ -15,6 +15,8 @@ import { ImpersonationHistory } from "./components/ImpersonationHistory"
 import { ImpersonationBanner } from "./components/ImpersonationBanner"
 import { NotFound } from "./components/NotFound"
 import { LoginPage } from "./components/LoginPage"
+import OnboardingPage from "./components/OnboardingPage"
+import InviteManagement from "./components/InviteManagement"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { BreadcrumbNavigation } from "./components/BreadcrumbNavigation"
 import { Separator } from "./components/ui/separator"
@@ -55,6 +57,13 @@ const menuItems = [
     path: "/users",
     key: "users",
     description: "Manage users and roles"
+  },
+  {
+    title: "Invite Management", 
+    icon: UserCheck,
+    path: "/invites",
+    key: "invites",
+    description: "Send invitations & manage onboarding"
   },
   {
     title: "Account Health",
@@ -146,6 +155,9 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
       switch (item.key) {
         case 'users':
           // Only admins and superadmins can see user management
+          return ['admin', 'superadmin'].includes(userProfile.role)
+        case 'invites':
+          // Only admins and superadmins can see invite management
           return ['admin', 'superadmin'].includes(userProfile.role)
         case 'impersonation':
           // Only admins and superadmins can see impersonation history
@@ -487,6 +499,7 @@ function DashboardContent() {
               <Route path="/overview" element={<Navigate to="/" replace />} />
               <Route path="/clients" element={<ClientManagement />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/invites" element={<InviteManagement />} />
               <Route path="/account-health" element={<AccountHealth />} />
               <Route path="/monitoring" element={<SystemMonitoring />} />
               <Route path="/payments" element={<PaymentsBilling />} />
@@ -784,8 +797,9 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Login Route */}
+          {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
           
           {/* Protected Dashboard Routes */}
           <Route path="/*" element={<ProtectedDashboard />} />

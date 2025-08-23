@@ -159,6 +159,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', require('./routes/roleRoutes'));
 app.use('/api/account-health', accountHealthRoutes);
+app.use('/api/invites', require('./routes/inviteRoutes'));
+app.use('/api/test', require('./routes/test'));
 
 // Apply general rate limiting to all API routes
 app.use('/api', generalLimiter);
@@ -196,7 +198,8 @@ const startServer = async () => {
       console.log('  ⚙️  Admin: /api/admin');
       console.log('  🔔 Notifications: /api/notifications');
       console.log('  🎭 Roles: /api/roles');
-      console.log('  👥 Impersonation: /api/impersonate');
+      console.log('  � Invites: /api/invites');
+      console.log('  �👥 Impersonation: /api/impersonate');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
