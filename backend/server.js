@@ -160,7 +160,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', require('./routes/roleRoutes'));
 app.use('/api/account-health', accountHealthRoutes);
 app.use('/api/invites', require('./routes/inviteRoutes'));
-app.use('/api/test', require('./routes/test'));
+// app.use('/api/test', require('./routes/test')); // Commented out - test routes not implemented
 
 // Apply general rate limiting to all API routes
 app.use('/api', generalLimiter);
