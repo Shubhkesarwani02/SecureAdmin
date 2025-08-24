@@ -31,6 +31,9 @@ const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const accountHealthRoutes = require('./routes/accountHealthRoutes');
 const integrationRoutes = require('./routes/integrationRoutes');
+const monitoringRoutes = require('./routes/monitoringRoutes');
+const billingRoutes = require('./routes/billingRoutes');
+const snippetsRoutes = require('./routes/snippetsRoutes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/errorHandler');
@@ -165,6 +168,9 @@ app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/system', require('./routes/systemRoutes'));
 app.use('/api/impersonation-history', require('./routes/impersonationRoutes'));
 app.use('/api/integrations', integrationRoutes);
+app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/snippets', snippetsRoutes);
 // app.use('/api/test', require('./routes/test')); // Commented out - test routes not implemented
 
 // Apply general rate limiting to all API routes

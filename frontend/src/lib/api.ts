@@ -393,6 +393,235 @@ class ApiClient {
     return this.request(endpoint);
   }
 
+  // Invite Management methods
+  async sendInvitation(inviteData: {
+    email: string;
+    role: string;
+    accountId?: string;
+    message?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/invites/send', {
+      method: 'POST',
+      body: JSON.stringify(inviteData),
+    });
+  }
+
+  async getAvailableAccounts(): Promise<ApiResponse<any[]>> {
+    return this.request('/invites/available-accounts');
+  }
+
+  async getInviteHistory(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const endpoint = `/invites${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  // Client Management methods  
+  async getClients(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    planType?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const endpoint = `/clients${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async addClient(clientData: {
+    companyName: string;
+    email: string;
+    phone?: string;
+    planType: string;
+    billingAddress?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(clientData),
+    });
+  }
+
+  async exportClientData(format: 'csv' | 'excel' = 'csv'): Promise<ApiResponse<any>> {
+    return this.request(`/clients/export?format=${format}`);
+  }
+
+  async getClientStats(): Promise<ApiResponse<any>> {
+    return this.request('/clients/stats');
+  }
+
+  // Payments and Billing methods
+  async getRevenueData(timeframe?: string): Promise<ApiResponse<any>> {
+    const params = timeframe ? `?timeframe=${timeframe}` : ''
+    return this.request(`/billing/revenue${params}`)
+  }
+
+  async getSubscriptionData(): Promise<ApiResponse<any>> {
+    return this.request('/billing/subscriptions')
+  }
+
+  async getTransactions(params?: {
+    page?: number
+    limit?: number
+    status?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, String(value))
+      })
+    }
+    const query = queryParams.toString()
+    return this.request(`/billing/transactions${query ? `?${query}` : ''}`)
+  }
+
+  async getUpcomingRenewals(): Promise<ApiResponse<any>> {
+    return this.request('/billing/renewals')
+  }
+
+  async getFailedPayments(): Promise<ApiResponse<any>> {
+    return this.request('/billing/failed-payments')
+  }
+
+  async retryPayment(transactionId: string): Promise<ApiResponse<any>> {
+    return this.request(`/billing/retry-payment/${transactionId}`, {
+      method: 'POST'
+    })
+  }
+
+  async generateBillingReport(timeframe: string): Promise<ApiResponse<any>> {
+    return this.request('/billing/generate-report', {
+      method: 'POST',
+      body: JSON.stringify({ timeframe })
+    })
+  }
+
+  async downloadInvoice(transactionId: string): Promise<ApiResponse<any>> {
+    return this.request(`/billing/invoice/${transactionId}/download`)
+  }
+
+  // System Monitoring methods
+  async getSystemMetrics(timeframe?: string): Promise<ApiResponse<any>> {
+    const params = timeframe ? `?timeframe=${timeframe}` : ''
+    return this.request(`/monitoring/system-metrics${params}`)
+  }
+
+  async getApiEndpointStatus(): Promise<ApiResponse<any>> {
+    return this.request('/monitoring/api-endpoints')
+  }
+
+  async getErrorLogs(params?: {
+    page?: number
+    limit?: number
+    level?: string
+    service?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, String(value))
+      })
+    }
+    const query = queryParams.toString()
+    return this.request(`/monitoring/error-logs${query ? `?${query}` : ''}`)
+  }
+
+  async getSystemHealth(): Promise<ApiResponse<any>> {
+    return this.request('/monitoring/system-health')
+  }
+
+  async refreshSystemData(): Promise<ApiResponse<any>> {
+    return this.request('/monitoring/refresh', {
+      method: 'POST'
+    })
+  }
+
+  // Snippet Manager methods
+  async getIntegrationSnippets(params?: {
+    page?: number
+    limit?: number
+    platform?: string
+    status?: string
+    search?: string
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, String(value))
+      })
+    }
+    const query = queryParams.toString()
+    return this.request(`/snippets${query ? `?${query}` : ''}`)
+  }
+
+  async generateSnippet(clientData: {
+    clientCode: string
+    platform: string
+    features: string[]
+    companyName?: string
+  }): Promise<ApiResponse<any>> {
+    return this.request('/snippets/generate', {
+      method: 'POST',
+      body: JSON.stringify(clientData)
+    })
+  }
+
+  async updateSnippet(snippetId: string, updateData: any): Promise<ApiResponse<any>> {
+    return this.request(`/snippets/${snippetId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData)
+    })
+  }
+
+  async deleteSnippet(snippetId: string): Promise<ApiResponse<any>> {
+    return this.request(`/snippets/${snippetId}`, {
+      method: 'DELETE'
+    })
+  }
+
+  async getSnippetStats(): Promise<ApiResponse<any>> {
+    return this.request('/snippets/stats')
+  }
+
+  // Admin Settings methods
+  async getAdminSettings(): Promise<ApiResponse<any>> {
+    return this.request('/admin/settings')
+  }
+
+  async updateAdminSettings(settings: any): Promise<ApiResponse<any>> {
+    return this.request('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings)
+    })
+  }
+
+  async getSystemStats(): Promise<ApiResponse<any>> {
+    return this.request('/admin/system-stats')
+  }
+
   // Utility methods
   setToken(token: string) {
     this.saveTokenToStorage(token);

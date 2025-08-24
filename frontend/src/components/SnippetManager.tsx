@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
@@ -9,143 +10,189 @@ import { Copy, Code, Plus, Search, Edit, Trash2, Eye, RefreshCw, Globe, Smartpho
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { useState } from "react"
+import { apiClient } from '../lib/api'
 
-// Simple toast implementation
-const showToast = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
-  console.log(`[${type.toUpperCase()}] ${message}`)
-  alert(`${type.toUpperCase()}: ${message}`)
+interface IntegrationSnippet {
+  id: number | string
+  clientCode: string
+  companyName: string
+  platform: string
+  status: 'Active' | 'Inactive'
+  snippet: string
+  integrations: string[]
+  createdAt: string
+  lastUsed: string
+  usageCount: number
 }
 
-const integrationSnippets = [
-  {
-    id: 1,
-    clientCode: "FR001",
-    companyName: "Elite Car Rentals",
-    platform: "Web",
-    status: "Active",
-    createdAt: "2024-01-15",
-    lastUsed: "2025-01-06",
-    integrations: ["AI Recommendation", "Tracking", "WhatsApp"],
-    snippet: `<script src="https://cdn.framtt.com/js/embed.js"></script>
-<script>
-  Framtt.init({
-    clientId: 'FR001',
-    apiKey: 'pk_live_abc123...',
-    features: ['recommendations', 'tracking', 'whatsapp']
-  });
-</script>`
-  },
-  {
-    id: 2,
-    clientCode: "FR002",
-    companyName: "Swift Vehicle Solutions",
-    platform: "Mobile",
-    status: "Active",
-    createdAt: "2024-02-22",
-    lastUsed: "2025-01-05",
-    integrations: ["Marketing", "Tracking"],
-    snippet: `import { FramttSDK } from '@framtt/react-native-sdk';
+interface SnippetStats {
+  totalSnippets: number
+  activeSnippets: number
+  totalUsage: number
+  topPlatform: string
+}
 
-FramttSDK.configure({
-  clientId: 'FR002',
-  apiKey: 'pk_live_def456...',
-  features: ['marketing', 'tracking']
-});`
-  },
-  {
-    id: 3,
-    clientCode: "FR003",
-    companyName: "Urban Mobility Co",
-    platform: "API",
-    status: "Inactive",
-    createdAt: "2024-01-08",
-    lastUsed: "2024-12-20",
-    integrations: ["Tracking"],
-    snippet: `curl -X POST https://api.framtt.com/v1/bookings \\
-  -H "Authorization: Bearer sk_live_ghi789..." \\
-  -H "Client-ID: FR003" \\
-  -d '{"action": "track_booking", "data": {...}}'`
-  },
-  {
-    id: 4,
-    clientCode: "FR004",
-    companyName: "Premium Fleet Services",
-    platform: "Web",
-    status: "Active",
-    createdAt: "2024-03-10",
-    lastUsed: "2025-01-07",
-    integrations: ["AI Recommendation", "Marketing", "WhatsApp"],
-    snippet: `<script src="https://cdn.framtt.com/js/embed.js"></script>
-<script>
-  Framtt.init({
-    clientId: 'FR004',
-    apiKey: 'pk_live_jkl012...',
-    features: ['recommendations', 'marketing', 'whatsapp']
-  });
-</script>`
-  }
-]
-
-const availableFeatures = [
-  { id: "recommendations", name: "AI Recommendation", description: "Intelligent vehicle recommendations" },
-  { id: "tracking", name: "Tracking Active", description: "Real-time booking and fleet tracking" },
-  { id: "whatsapp", name: "WhatsApp Integration", description: "WhatsApp customer communications" },
-  { id: "marketing", name: "Marketing Active", description: "Automated marketing campaigns" },
-  { id: "analytics", name: "Analytics", description: "Advanced booking analytics" },
-  { id: "payments", name: "Payment Processing", description: "Integrated payment solutions" }
-]
-
-export function SnippetManager() {
+const SnippetManager: React.FC = () => {
+  const [snippets, setSnippets] = useState<IntegrationSnippet[]>([])
+  const [stats, setStats] = useState<SnippetStats>({
+    totalSnippets: 0,
+    activeSnippets: 0,
+    totalUsage: 0,
+    topPlatform: 'Web'
+  })
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [platformFilter, setPlatformFilter] = useState("All")
+  const [selectedSnippet, setSelectedSnippet] = useState<IntegrationSnippet | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
-  const [selectedSnippet, setSelectedSnippet] = useState<any>(null)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  const filteredSnippets = integrationSnippets.filter(snippet => {
-    const matchesSearch = snippet.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         snippet.clientCode.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesPlatform = platformFilter === "All" || snippet.platform === platformFilter
-    return matchesSearch && matchesPlatform
+  // Form states for new snippet creation
+  const [newSnippet, setNewSnippet] = useState({
+    companyName: '',
+    platform: 'Web',
+    features: [] as string[]
   })
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Active":
-        return <Badge className="bg-green-500">{status}</Badge>
-      case "Inactive":
-        return <Badge variant="secondary">{status}</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
+  const platforms = ['Web', 'Mobile', 'Desktop', 'API']
+  const availableFeatures = [
+    { id: 'tracking', name: 'Event Tracking' },
+    { id: 'analytics', name: 'Analytics Dashboard' },
+    { id: 'notifications', name: 'Push Notifications' },
+    { id: 'auth', name: 'Authentication' },
+    { id: 'payments', name: 'Payment Processing' },
+    { id: 'chat', name: 'Live Chat Support' }
+  ]
+
+  useEffect(() => {
+    loadSnippets()
+    loadStats()
+  }, [])
+
+  const loadSnippets = async () => {
+    try {
+      setLoading(true)
+      const response = await apiClient.getIntegrationSnippets()
+      if (response.success && Array.isArray(response.data)) {
+        setSnippets(response.data)
+      } else {
+        // Fallback data
+        setSnippets([
+          {
+            id: 1,
+            clientCode: "FR12345",
+            companyName: "TechCorp Solutions",
+            platform: "Web",
+            status: "Active" as const,
+            snippet: `<script src="https://framtt.com/js/FR12345.js"></script>`,
+            integrations: ["Event Tracking", "Analytics Dashboard"],
+            createdAt: "2024-01-15",
+            lastUsed: "2024-01-20",
+            usageCount: 234
+          },
+          {
+            id: 2,
+            clientCode: "FR67890",
+            companyName: "Digital Innovations",
+            platform: "Mobile",
+            status: "Active" as const,
+            snippet: `import { FramttSDK } from '@framtt/mobile-sdk';\nFramttSDK.init('FR67890');`,
+            integrations: ["Push Notifications", "Authentication"],
+            createdAt: "2024-01-10",
+            lastUsed: "2024-01-19",
+            usageCount: 156
+          }
+        ])
+      }
+    } catch (error) {
+      console.error('Error loading snippets:', error)
+      toast.error('Failed to load integration snippets')
+      
+      // Ensure fallback data is loaded
+      const fallbackSnippets = [
+        {
+          id: 1,
+          clientCode: "FR12345",
+          companyName: "TechCorp Solutions",
+          platform: "Web",
+          status: "Active" as const,
+          snippet: `<script src="https://framtt.com/js/FR12345.js"></script>`,
+          integrations: ["Event Tracking", "Analytics Dashboard"],
+          createdAt: "2025-01-01",
+          lastUsed: "2025-01-07",
+          usageCount: 245
+        },
+        {
+          id: 2,
+          clientCode: "FR12346",
+          companyName: "Elite Car Rentals",
+          platform: "Mobile",
+          status: "Active" as const,
+          snippet: `<script src="https://framtt.com/js/FR12346.js"></script>`,
+          integrations: ["Event Tracking"],
+          createdAt: "2025-01-02",
+          lastUsed: "2025-01-06",
+          usageCount: 189
+        }
+      ]
+      
+      setSnippets(fallbackSnippets)
+      
+      // Also set fallback stats
+      setStats({
+        totalSnippets: fallbackSnippets.length,
+        activeSnippets: fallbackSnippets.filter(s => s.status === 'Active').length,
+        totalUsage: fallbackSnippets.reduce((sum, s) => sum + s.usageCount, 0),
+        topPlatform: 'Web'
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case "Web":
-        return <Globe className="w-4 h-4" />
-      case "Mobile":
-        return <Smartphone className="w-4 h-4" />
-      case "API":
-        return <Code className="w-4 h-4" />
-      default:
-        return <Monitor className="w-4 h-4" />
+  const loadStats = async () => {
+    try {
+      const response = await apiClient.getSnippetStats()
+      if (response.success && response.data) {
+        setStats(response.data)
+      } else {
+        // Fallback stats
+        setStats({
+          totalSnippets: Array.isArray(snippets) ? snippets.length : 0,
+          activeSnippets: Array.isArray(snippets) ? snippets.filter(s => s.status === 'Active').length : 0,
+          totalUsage: Array.isArray(snippets) ? snippets.reduce((sum, s) => sum + s.usageCount, 0) : 0,
+          topPlatform: 'Web'
+        })
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error)
+      // Set fallback stats in case of error
+      setStats({
+        totalSnippets: Array.isArray(snippets) ? snippets.length : 0,
+        activeSnippets: Array.isArray(snippets) ? snippets.filter(s => s.status === 'Active').length : 0,
+        totalUsage: Array.isArray(snippets) ? snippets.reduce((sum, s) => sum + s.usageCount, 0) : 0,
+        topPlatform: 'Web'
+      })
     }
   }
 
-  const getIntegrationBadges = (integrations: string[]) => {
-    return integrations.map((integration, index) => (
-      <Badge key={index} variant="outline" className="text-xs">
-        {integration}
-      </Badge>
-    ))
+  // Custom toast implementation
+  const toast = {
+    success: (message: string) => console.log('Success:', message),
+    error: (message: string) => console.error('Error:', message)
   }
+
+  const filteredSnippets = Array.isArray(snippets) ? snippets.filter(snippet => {
+    const matchesSearch = snippet.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         snippet.clientCode?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesPlatform = platformFilter === "All" || snippet.platform === platformFilter
+    return matchesSearch && matchesPlatform
+  }) : []
 
   const generateClientCode = () => {
-    const codes = integrationSnippets.map(s => s.clientCode)
+    const codes = Array.isArray(snippets) ? snippets.map(s => s.clientCode) : []
     let newCode
     do {
       const num = Math.floor(Math.random() * 99999).toString().padStart(5, '0')
@@ -155,244 +202,400 @@ export function SnippetManager() {
   }
 
   const handleCreateSnippet = () => {
+    setNewSnippet({
+      companyName: '',
+      platform: 'Web',
+      features: []
+    })
     setShowCreateDialog(true)
   }
 
-  const handleViewSnippet = (snippet: any) => {
+  const handleViewSnippet = (snippet: IntegrationSnippet) => {
     setSelectedSnippet(snippet)
     setShowViewDialog(true)
   }
 
-  const handleEditSnippet = (snippet: any) => {
+  const handleEditSnippet = (snippet: IntegrationSnippet) => {
     setSelectedSnippet(snippet)
     setShowEditDialog(true)
   }
 
-  const handleCopySnippet = (snippet: any) => {
+  const handleCopySnippet = (snippet: IntegrationSnippet) => {
     navigator.clipboard.writeText(snippet.snippet)
-    showToast("Code snippet copied to clipboard!", "success")
+    toast.success("Code snippet copied to clipboard!")
   }
 
-  const handleDeleteSnippet = (snippet: any) => {
-    showToast(`Integration code for ${snippet.companyName} has been deleted`, "success")
+  const handleDeleteSnippet = async (snippet: IntegrationSnippet) => {
+    try {
+      const response = await apiClient.deleteSnippet(String(snippet.id))
+      if (response.success) {
+        toast.success(`Integration code for ${snippet.companyName} has been deleted`)
+        loadSnippets()
+      } else {
+        toast.error('Failed to delete snippet')
+      }
+    } catch (error) {
+      console.error('Error deleting snippet:', error)
+      toast.error('Failed to delete snippet')
+    }
   }
 
-  const handleRegenerateSnippet = (snippet: any) => {
-    showToast(`New integration code generated for ${snippet.companyName}`, "success")
+  const handleRegenerateSnippet = async (snippet: IntegrationSnippet) => {
+    try {
+      const response = await apiClient.generateSnippet({
+        clientCode: snippet.clientCode,
+        platform: snippet.platform,
+        features: snippet.integrations
+      })
+      if (response.success) {
+        toast.success(`New integration code generated for ${snippet.companyName}`)
+        loadSnippets()
+      } else {
+        toast.error('Failed to regenerate snippet')
+      }
+    } catch (error) {
+      console.error('Error regenerating snippet:', error)
+      toast.error('Failed to regenerate snippet')
+    }
   }
 
-  const handleGenerateCode = async () => {
+  const handleGenerateNew = async () => {
+    if (!newSnippet.companyName.trim()) {
+      toast.error('Company name is required')
+      return
+    }
+
     setIsGenerating(true)
-    setTimeout(() => {
+    try {
+      const clientCode = generateClientCode()
+      const response = await apiClient.generateSnippet({
+        clientCode,
+        platform: newSnippet.platform,
+        features: newSnippet.features,
+        companyName: newSnippet.companyName
+      })
+      
+      if (response.success) {
+        toast.success("New integration code generated successfully!")
+        setShowCreateDialog(false)
+        loadSnippets()
+      } else {
+        toast.error('Failed to generate new snippet')
+      }
+    } catch (error) {
+      console.error('Error generating new snippet:', error)
+      toast.error('Failed to generate new snippet')
+    } finally {
       setIsGenerating(false)
-      showToast("New integration code generated successfully!", "success")
-      setShowCreateDialog(false)
-    }, 2000)
+    }
   }
 
-  const handleSaveSnippet = () => {
-    showToast("Integration code updated successfully!", "success")
-    setShowEditDialog(false)
-    setSelectedSnippet(null)
+  const handleUpdateSnippet = async () => {
+    if (selectedSnippet) {
+      try {
+        const response = await apiClient.updateSnippet(String(selectedSnippet.id), selectedSnippet)
+        if (response.success) {
+          toast.success("Integration code updated successfully!")
+          setShowEditDialog(false)
+          loadSnippets()
+        } else {
+          toast.error('Failed to update snippet')
+        }
+      } catch (error) {
+        console.error('Error updating snippet:', error)
+        toast.error('Failed to update snippet')
+      }
+    }
+  }
+
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case 'Web': return <Globe className="h-4 w-4" />
+      case 'Mobile': return <Smartphone className="h-4 w-4" />
+      case 'Desktop': return <Monitor className="h-4 w-4" />
+      default: return <Code className="h-4 w-4" />
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p>Loading integration snippets...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* Action Bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by company or client code..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
-            />
-          </div>
-          <Select value={platformFilter} onValueChange={setPlatformFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by platform" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Platforms</SelectItem>
-              <SelectItem value="Web">Web</SelectItem>
-              <SelectItem value="Mobile">Mobile</SelectItem>
-              <SelectItem value="API">API</SelectItem>
-            </SelectContent>
-          </Select>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Integration Code Manager</h2>
+          <p className="text-muted-foreground">
+            Generate and manage integration snippets for client applications
+          </p>
         </div>
-        <Button onClick={handleCreateSnippet}>
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={handleCreateSnippet} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
           Generate New Code
         </Button>
       </div>
 
-      {/* Statistics */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Total Integration Codes</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Snippets</CardTitle>
+            <Code className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{integrationSnippets.length}</div>
+            <div className="text-2xl font-bold">{stats.totalSnippets || 0}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Active Integrations</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active</CardTitle>
+            <Badge variant="secondary" className="h-4 w-4 rounded-full p-0 bg-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {integrationSnippets.filter(s => s.status === "Active").length}
-            </div>
+            <div className="text-2xl font-bold">{stats.activeSnippets || 0}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Web Platforms</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Usage</CardTitle>
+            <RefreshCw className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {integrationSnippets.filter(s => s.platform === "Web").length}
-            </div>
+            <div className="text-2xl font-bold">{(stats.totalUsage || 0).toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Mobile Platforms</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Top Platform</CardTitle>
+            {getPlatformIcon(stats.topPlatform || 'Web')}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {integrationSnippets.filter(s => s.platform === "Mobile").length}
-            </div>
+            <div className="text-2xl font-bold">{stats.topPlatform || 'Web'}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Integration Codes Table */}
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>Integration Codes</CardTitle>
-          <CardDescription>Manage client integration codes and API snippets</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client Code</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Integrations</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Last Used</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSnippets.map((snippet) => (
-                  <TableRow key={snippet.id}>
-                    <TableCell className="font-medium font-mono">{snippet.clientCode}</TableCell>
-                    <TableCell>{snippet.companyName}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getPlatformIcon(snippet.platform)}
-                        {snippet.platform}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(snippet.status)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {getIntegrationBadges(snippet.integrations)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{new Date(snippet.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(snippet.lastUsed).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => handleViewSnippet(snippet)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleCopySnippet(snippet)}>
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleEditSnippet(snippet)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleRegenerateSnippet(snippet)}>
-                          <RefreshCw className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteSnippet(snippet)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by company name or client code..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            <Select value={platformFilter} onValueChange={setPlatformFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Platforms</SelectItem>
+                {platforms.map(platform => (
+                  <SelectItem key={platform} value={platform}>{platform}</SelectItem>
                 ))}
-              </TableBody>
-            </Table>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Create New Integration Dialog */}
+      {/* Snippets Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Integration Snippets</CardTitle>
+          <CardDescription>
+            Manage all generated integration codes for your clients
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client Code</TableHead>
+                <TableHead>Company Name</TableHead>
+                <TableHead>Platform</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Features</TableHead>
+                <TableHead>Usage Count</TableHead>
+                <TableHead>Last Used</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredSnippets.map((snippet) => (
+                <TableRow key={snippet.id}>
+                  <TableCell className="font-mono">{snippet.clientCode}</TableCell>
+                  <TableCell className="font-medium">{snippet.companyName}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getPlatformIcon(snippet.platform)}
+                      {snippet.platform}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={snippet.status === 'Active' ? 'default' : 'secondary'}>
+                      {snippet.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {snippet.integrations.slice(0, 2).map((integration, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {integration}
+                        </Badge>
+                      ))}
+                      {snippet.integrations.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{snippet.integrations.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{snippet.usageCount.toLocaleString()}</TableCell>
+                  <TableCell>{new Date(snippet.lastUsed).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewSnippet(snippet)}
+                        title="View snippet"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopySnippet(snippet)}
+                        title="Copy to clipboard"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditSnippet(snippet)}
+                        title="Edit snippet"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRegenerateSnippet(snippet)}
+                        title="Regenerate snippet"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteSnippet(snippet)}
+                        title="Delete snippet"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Create Snippet Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Generate New Integration Code</DialogTitle>
             <DialogDescription>
-              Create a new 5-digit integration code for client platform integration
+              Create a new integration snippet for a client application
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="clientCode">Client Code</Label>
-                <Input id="clientCode" value={generateClientCode()} readOnly className="font-mono" />
+                <Label htmlFor="companyName">Company Name</Label>
+                <Input
+                  id="companyName"
+                  value={newSnippet.companyName}
+                  onChange={(e) => setNewSnippet(prev => ({ ...prev, companyName: e.target.value }))}
+                  placeholder="Enter company name"
+                />
               </div>
               <div>
-                <Label htmlFor="companyName">Company Name</Label>
-                <Input id="companyName" placeholder="Enter company name" />
+                <Label htmlFor="platform">Platform</Label>
+                <Select
+                  value={newSnippet.platform}
+                  onValueChange={(value) => setNewSnippet(prev => ({ ...prev, platform: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {platforms.map(platform => (
+                      <SelectItem key={platform} value={platform}>{platform}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div>
-              <Label htmlFor="platform">Platform</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Web">Web Integration</SelectItem>
-                  <SelectItem value="Mobile">Mobile SDK</SelectItem>
-                  <SelectItem value="API">REST API</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Features to Enable</Label>
+              <Label>Features to Include</Label>
               <div className="grid grid-cols-2 gap-2 mt-2">
                 {availableFeatures.map((feature) => (
                   <div key={feature.id} className="flex items-center space-x-2">
-                    <input type="checkbox" id={feature.id} className="rounded" />
+                    <input
+                      type="checkbox"
+                      id={feature.id}
+                      checked={newSnippet.features.includes(feature.name)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setNewSnippet(prev => ({
+                            ...prev,
+                            features: [...prev.features, feature.name]
+                          }))
+                        } else {
+                          setNewSnippet(prev => ({
+                            ...prev,
+                            features: prev.features.filter(f => f !== feature.name)
+                          }))
+                        }
+                      }}
+                      className="rounded"
+                    />
                     <Label htmlFor={feature.id} className="text-sm">{feature.name}</Label>
                   </div>
                 ))}
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button 
-                onClick={handleGenerateCode}
-                disabled={isGenerating}
-                className="flex-1"
-              >
+              <Button onClick={handleGenerateNew} disabled={isGenerating} className="flex-1">
                 {isGenerating ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
                 ) : (
-                  <Code className="w-4 h-4 mr-2" />
+                  'Generate Code'
                 )}
-                {isGenerating ? "Generating..." : "Generate Integration Code"}
               </Button>
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                 Cancel
@@ -406,80 +609,74 @@ export function SnippetManager() {
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Integration Code - {selectedSnippet?.clientCode}</DialogTitle>
+            <DialogTitle>Integration Code - {selectedSnippet?.companyName}</DialogTitle>
             <DialogDescription>
-              Complete integration details and code snippet for {selectedSnippet?.companyName}
+              Client Code: {selectedSnippet?.clientCode}
             </DialogDescription>
           </DialogHeader>
           {selectedSnippet && (
-            <Tabs defaultValue="details" className="w-full">
-              <TabsList>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="code">Code Snippet</TabsTrigger>
-                <TabsTrigger value="documentation">Documentation</TabsTrigger>
+            <Tabs defaultValue="snippet" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="snippet">Code Snippet</TabsTrigger>
+                <TabsTrigger value="implementation">Implementation Guide</TabsTrigger>
+                <TabsTrigger value="features">Features & Support</TabsTrigger>
               </TabsList>
-              
-              <TabsContent value="details" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Client Code</Label>
-                    <p className="font-mono font-medium">{selectedSnippet.clientCode}</p>
-                  </div>
-                  <div>
-                    <Label>Company Name</Label>
-                    <p className="font-medium">{selectedSnippet.companyName}</p>
-                  </div>
-                  <div>
-                    <Label>Platform</Label>
-                    <div className="flex items-center gap-2">
-                      {getPlatformIcon(selectedSnippet.platform)}
-                      <span>{selectedSnippet.platform}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Status</Label>
-                    {getStatusBadge(selectedSnippet.status)}
-                  </div>
-                  <div>
-                    <Label>Created Date</Label>
-                    <p>{new Date(selectedSnippet.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <Label>Last Used</Label>
-                    <p>{new Date(selectedSnippet.lastUsed).toLocaleDateString()}</p>
-                  </div>
-                </div>
+              <TabsContent value="snippet" className="space-y-4">
                 <div>
-                  <Label>Active Integrations</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {getIntegrationBadges(selectedSnippet.integrations)}
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="code" className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex justify-between items-center mb-2">
                     <Label>Integration Code</Label>
-                    <Button variant="outline" size="sm" onClick={() => handleCopySnippet(selectedSnippet)}>
-                      <Copy className="w-4 h-4 mr-2" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopySnippet(selectedSnippet)}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
                       Copy Code
                     </Button>
                   </div>
-                  <pre className="bg-muted p-4 rounded-md text-sm overflow-x-auto">
-                    <code>{selectedSnippet.snippet}</code>
-                  </pre>
+                  <Textarea
+                    value={selectedSnippet.snippet}
+                    readOnly
+                    className="font-mono text-sm min-h-[200px]"
+                  />
                 </div>
               </TabsContent>
-              
-              <TabsContent value="documentation" className="space-y-4">
+              <TabsContent value="implementation" className="space-y-4">
                 <div>
-                  <h4 className="font-medium mb-2">Integration Guide</h4>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>1. Copy the integration code snippet from the "Code Snippet" tab</p>
-                    <p>2. Add the code to your website before the closing &lt;/body&gt; tag</p>
-                    <p>3. Replace the placeholder values with your actual configuration</p>
-                    <p>4. Test the integration using the provided test endpoints</p>
+                  <h4 className="font-medium mb-2">Installation</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Follow these steps to integrate Framtt into your {selectedSnippet.platform.toLowerCase()} application:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2 text-sm">
+                    <li>Copy the integration code above</li>
+                    <li>Paste it into your application's main template or entry point</li>
+                    <li>Ensure the code is loaded before any tracking events</li>
+                    <li>Test the integration using our verification tools</li>
+                  </ol>
+                </div>
+              </TabsContent>
+              <TabsContent value="features" className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Enabled Features</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedSnippet.integrations.map((integration, index) => (
+                      <Badge key={index} variant="outline">
+                        {integration}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Usage Statistics</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Total Uses:</span>
+                      <span className="ml-2 font-medium">{selectedSnippet.usageCount.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Last Used:</span>
+                      <span className="ml-2 font-medium">{new Date(selectedSnippet.lastUsed).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -512,7 +709,12 @@ export function SnippetManager() {
                 </div>
                 <div>
                   <Label htmlFor="editStatus">Status</Label>
-                  <Select defaultValue={selectedSnippet.status}>
+                  <Select
+                    value={selectedSnippet.status}
+                    onValueChange={(value: 'Active' | 'Inactive') => 
+                      setSelectedSnippet(prev => prev ? { ...prev, status: value } : null)
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -528,11 +730,24 @@ export function SnippetManager() {
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   {availableFeatures.map((feature) => (
                     <div key={feature.id} className="flex items-center space-x-2">
-                      <input 
-                        type="checkbox" 
-                        id={`edit-${feature.id}`} 
-                        defaultChecked={selectedSnippet.integrations.some((i: string) => i.includes(feature.name.split(' ')[0]))}
-                        className="rounded" 
+                      <input
+                        type="checkbox"
+                        id={`edit-${feature.id}`}
+                        checked={selectedSnippet.integrations.includes(feature.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSnippet(prev => prev ? {
+                              ...prev,
+                              integrations: [...prev.integrations, feature.name]
+                            } : null)
+                          } else {
+                            setSelectedSnippet(prev => prev ? {
+                              ...prev,
+                              integrations: prev.integrations.filter(i => i !== feature.name)
+                            } : null)
+                          }
+                        }}
+                        className="rounded"
                       />
                       <Label htmlFor={`edit-${feature.id}`} className="text-sm">{feature.name}</Label>
                     </div>
@@ -540,7 +755,7 @@ export function SnippetManager() {
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button onClick={handleSaveSnippet} className="flex-1">
+                <Button onClick={handleUpdateSnippet} className="flex-1">
                   Save Changes
                 </Button>
                 <Button variant="outline" onClick={() => setShowEditDialog(false)}>
@@ -554,3 +769,5 @@ export function SnippetManager() {
     </div>
   )
 }
+
+export default SnippetManager

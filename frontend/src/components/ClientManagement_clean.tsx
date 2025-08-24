@@ -210,7 +210,7 @@ export default function ClientManagement() {
     }
   }
 
-  const filteredClients = (Array.isArray(clients) ? clients : []).filter(client =>
+  const filteredClients = clients.filter(client =>
     client.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
