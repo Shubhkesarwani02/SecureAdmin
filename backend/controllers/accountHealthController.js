@@ -1,6 +1,8 @@
 // Account Health Controller
 // Handles account health monitoring, scoring, and alerts for the Framtt Superadmin Dashboard
 
+const { asyncHandler } = require('../middleware/errorHandler');
+
 // Mock database - In real implementation, this would be your database connection
 const mockAccountHealthData = {
   healthScores: [
@@ -493,31 +495,22 @@ const getHighRiskClients = (req, res) => {
 };
 
 // POST /api/account-health/refresh-scores
-const refreshHealthScores = (req, res) => {
-  try {
-    // In a real implementation, this would trigger the health score calculation
-    // For demo purposes, we'll just update the lastHealthCheck timestamp
-    mockAccountHealthData.healthScores.forEach(score => {
-      score.lastHealthCheck = new Date().toISOString();
-    });
+const refreshHealthScores = asyncHandler(async (req, res) => {
+  // In a real implementation, this would trigger the health score calculation
+  // For demo purposes, we'll just update the lastHealthCheck timestamp
+  mockAccountHealthData.healthScores.forEach(score => {
+    score.lastHealthCheck = new Date().toISOString();
+  });
 
-    res.json({
-      success: true,
-      message: 'Health scores refreshed successfully',
-      data: {
-        updatedCount: mockAccountHealthData.healthScores.length,
-        lastRefresh: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Error refreshing health scores:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to refresh health scores',
-      error: error.message
-    });
-  }
-};
+  res.json({
+    success: true,
+    message: 'Health scores refreshed successfully',
+    data: {
+      updatedCount: mockAccountHealthData.healthScores.length,
+      lastRefresh: new Date().toISOString()
+    }
+  });
+});
 
 module.exports = {
   getAccountHealthOverview,

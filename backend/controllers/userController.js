@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 
 // @desc    Get all users
 // @route   GET /api/users
-// @access  Private (Superadmin)
+// @access  Private (Admin/Superadmin)
 const getUsers = asyncHandler(async (req, res) => {
   const { 
     role, 
@@ -16,9 +16,18 @@ const getUsers = asyncHandler(async (req, res) => {
     sortOrder = 'desc'
   } = req.query;
 
+  const currentUserRole = req.user.role;
+
   let filteredUsers = [...users];
 
-  // Apply filters
+  // Role-based filtering - Admins can see CSMs and Users, Superadmins can see all
+  if (currentUserRole === 'admin') {
+    filteredUsers = filteredUsers.filter(user => 
+      user.role === 'csm' || user.role === 'user'
+    );
+  }
+
+  // Apply additional filters
   if (role && role !== 'all') {
     filteredUsers = filteredUsers.filter(user => user.role === role);
   }
@@ -58,10 +67,18 @@ const getUsers = asyncHandler(async (req, res) => {
   const endIndex = startIndex + parseInt(limit);
   const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
-  // Remove sensitive data
+  // Remove sensitive data and add impersonation capability info
   const sanitizedUsers = paginatedUsers.map(user => {
     const { preferences, ...userWithoutPreferences } = user;
-    return userWithoutPreferences;
+    
+    // Add impersonation capability flag
+    const canImpersonate = (currentUserRole === 'superadmin') || 
+      (currentUserRole === 'admin' && (user.role === 'csm' || user.role === 'user'));
+    
+    return {
+      ...userWithoutPreferences,
+      canImpersonate
+    };
   });
 
   const totalUsers = filteredUsers.length;

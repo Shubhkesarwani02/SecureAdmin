@@ -57,6 +57,23 @@ const sendInvitation = asyncHandler(async (req, res) => {
     });
   }
 
+  // If accountId is provided, validate it exists
+  if (accountId) {
+    try {
+      const { accountService } = require('../services/database');
+      const account = await accountService.findById(accountId);
+      if (!account) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid account ID provided'
+        });
+      }
+    } catch (error) {
+      console.log('Account validation error:', error);
+      // Continue anyway for demo purposes
+    }
+  }
+
   try {
     // Create invite token
     const invite = await inviteService.createInvite({
@@ -508,6 +525,44 @@ const getInvitationStats = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get available accounts for invite dropdown
+// @route   GET /api/invites/available-accounts
+// @access  Private (Admin/Superadmin)
+const getAvailableAccounts = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  try {
+    // Mock accounts data - replace with real database call
+    const mockAccounts = [
+      { id: 1, name: 'Premium Fleet Services', companyName: 'Premium Fleet Inc.' },
+      { id: 2, name: 'Elite Car Rentals', companyName: 'Elite Motors LLC' },
+      { id: 3, name: 'Coastal Vehicle Co', companyName: 'Coastal Vehicles Corp' },
+      { id: 4, name: 'Metro Transit Solutions', companyName: 'Metro Transit Inc.' },
+      { id: 5, name: 'Sunshine Auto Rental', companyName: 'Sunshine Automotive' }
+    ];
+
+    // Filter accounts based on role permissions
+    let availableAccounts = mockAccounts;
+    
+    if (currentUserRole === 'admin') {
+      // Admins can see all accounts they manage
+      availableAccounts = mockAccounts; // In real implementation, filter by admin's managed accounts
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { accounts: availableAccounts }
+    });
+  } catch (error) {
+    console.error('Error fetching available accounts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching available accounts'
+    });
+  }
+});
+
 module.exports = {
   sendInvitation,
   validateInvitation,
@@ -515,5 +570,6 @@ module.exports = {
   getInvitations,
   resendInvitation,
   cancelInvitation,
-  getInvitationStats
+  getInvitationStats,
+  getAvailableAccounts
 };

@@ -30,6 +30,7 @@ const clientRoutes = require('./routes/clientRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const accountHealthRoutes = require('./routes/accountHealthRoutes');
+const integrationRoutes = require('./routes/integrationRoutes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/errorHandler');
@@ -160,6 +161,10 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', require('./routes/roleRoutes'));
 app.use('/api/account-health', accountHealthRoutes);
 app.use('/api/invites', require('./routes/inviteRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/system', require('./routes/systemRoutes'));
+app.use('/api/impersonation-history', require('./routes/impersonationRoutes'));
+app.use('/api/integrations', integrationRoutes);
 // app.use('/api/test', require('./routes/test')); // Commented out - test routes not implemented
 
 // Apply general rate limiting to all API routes
@@ -198,8 +203,12 @@ const startServer = async () => {
       console.log('  ⚙️  Admin: /api/admin');
       console.log('  🔔 Notifications: /api/notifications');
       console.log('  🎭 Roles: /api/roles');
-      console.log('  � Invites: /api/invites');
-      console.log('  �👥 Impersonation: /api/impersonate');
+      console.log('  📧 Invites: /api/invites');
+      console.log('  💳 Payments: /api/payments');
+      console.log('  🖥️  System: /api/system');
+      console.log('  � Impersonation History: /api/impersonation-history');
+      console.log('  🔄 Impersonate (auth): /api/auth/impersonate');
+      console.log('  ❤️  Account Health: /api/account-health');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

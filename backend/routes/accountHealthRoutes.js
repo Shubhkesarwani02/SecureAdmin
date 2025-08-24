@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, requireRole } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 const {
   getAccountHealthOverview,
   getAccountHealthScores,
@@ -19,24 +19,24 @@ router.use(verifyToken);
 router.get('/overview', getAccountHealthOverview);
 
 // Get all account health scores with optional filtering and sorting (SuperAdmin, Admin, CSM)
-router.get('/scores', requireRole(['superadmin', 'admin', 'csm']), getAccountHealthScores);
+router.get('/scores', requireAdmin, getAccountHealthScores);
 
 // Get account health alerts with filtering options (SuperAdmin, Admin, CSM)
-router.get('/alerts', requireRole(['superadmin', 'admin', 'csm']), getAccountHealthAlerts);
+router.get('/alerts', requireAdmin, getAccountHealthAlerts);
 
 // Get detailed health information for a specific client (SuperAdmin, Admin, CSM)
-router.get('/client/:clientId', requireRole(['superadmin', 'admin', 'csm']), getClientHealthDetails);
+router.get('/client/:clientId', requireAdmin, getClientHealthDetails);
 
 // Get high-risk clients specifically (SuperAdmin, Admin)
-router.get('/high-risk', requireRole(['superadmin', 'admin']), getHighRiskClients);
+router.get('/high-risk', requireAdmin, getHighRiskClients);
 
 // Acknowledge an alert (SuperAdmin, Admin, CSM)
-router.post('/alerts/:alertId/acknowledge', requireRole(['superadmin', 'admin', 'csm']), acknowledgeAlert);
+router.post('/alerts/:alertId/acknowledge', requireAdmin, acknowledgeAlert);
 
 // Resolve an alert (SuperAdmin, Admin, CSM)
-router.post('/alerts/:alertId/resolve', requireRole(['superadmin', 'admin', 'csm']), resolveAlert);
+router.post('/alerts/:alertId/resolve', requireAdmin, resolveAlert);
 
 // Refresh all health scores (manual trigger) (SuperAdmin, Admin only)
-router.post('/refresh-scores', requireRole(['superadmin', 'admin']), refreshHealthScores);
+router.post('/refresh-scores', requireAdmin, refreshHealthScores);
 
 module.exports = router;

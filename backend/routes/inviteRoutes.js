@@ -6,7 +6,8 @@ const {
   getInvitations,
   resendInvitation,
   cancelInvitation,
-  getInvitationStats
+  getInvitationStats,
+  getAvailableAccounts
 } = require('../controllers/inviteController');
 const {
   verifyToken,
@@ -29,6 +30,9 @@ router.get('/stats', requireCSMOrAbove, getInvitationStats);
 
 // Get invitations list (CSM/Admin/Superadmin)
 router.get('/', requireCSMOrAbove, getInvitations);
+
+// Get available accounts for invite dropdown (Admin/Superadmin)
+router.get('/available-accounts', requireAdmin, getAvailableAccounts);
 
 // Send invitation (Admin/Superadmin only)
 router.post('/', requireAdmin, sensitiveOperationLimit, sendInvitation);
