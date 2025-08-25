@@ -127,6 +127,24 @@ This will start:
 - Frontend development server on `http://localhost:5173`
 - Backend development server on `http://localhost:3001`
 
+### 🧪 System Verification
+
+Run the comprehensive system verification to test all endpoints and functionality:
+
+```bash
+# Run complete system verification
+node framtt-complete-system-verification.js
+
+# This will test:
+# ✅ 20 different system components
+# ✅ 100+ API endpoints
+# ✅ Role-based access control
+# ✅ Authentication & authorization
+# ✅ Database schema validation
+# ✅ Security measures
+# ✅ All business logic systems
+```
+
 ## 🚀 Deployment
 
 ### Quick Deployment
@@ -362,6 +380,73 @@ The dashboard follows a consistent design system with:
 - ✅ Security settings configuration
 - ✅ Audit logging for all user actions
 
+## 🧪 Comprehensive System Verification
+
+The project includes a complete verification system that tests all aspects of the application:
+
+### Verification Coverage
+- **20 System Components**: Role hierarchy, authentication, impersonation, assignments, database schema, API endpoints, authorization, security, account health, audit logging, vehicle management, client management, notifications, admin operations, dashboard functionality, rate limiting, billing, monitoring, snippets, invites, payments, system routes, integrations, user management, account management, role management, and assignment management.
+
+- **100+ API Endpoints**: All routes across the entire backend system including:
+  - Authentication & Authorization (`/api/auth/*`)
+  - User Management (`/api/users/*`)
+  - Account Management (`/api/accounts/*`)
+  - Assignment Management (`/api/assignments/*`)
+  - Role Management (`/api/roles/*`)
+  - Audit Logging (`/api/audit/*`)
+  - Vehicle Management (`/api/vehicles/*`)
+  - Client Management (`/api/clients/*`)
+  - Notification System (`/api/notifications/*`)
+  - Admin Operations (`/api/admin/*`)
+  - Dashboard (`/api/dashboard/*`)
+  - Account Health (`/api/account-health/*`)
+  - Invite System (`/api/invites/*`)
+  - Payment System (`/api/payments/*`)
+  - System Routes (`/api/system/*`)
+  - Integration System (`/api/integrations/*`)
+  - Monitoring (`/api/monitoring/*`)
+  - Billing (`/api/billing/*`)
+  - Snippets (`/api/snippets/*`)
+
+### Security Testing
+- ✅ JWT token validation and structure
+- ✅ Password hashing verification
+- ✅ Role-based access control enforcement
+- ✅ Impersonation security measures
+- ✅ Rate limiting implementation
+- ✅ Audit logging verification
+- ✅ Refresh token security
+- ✅ Input validation and sanitization
+
+### Database Verification
+- ✅ Schema validation for all tables
+- ✅ Relationship integrity checks
+- ✅ Index and constraint verification
+- ✅ Data consistency validation
+
+### Business Logic Testing
+- ✅ CSM assignment scoping
+- ✅ User-account relationships
+- ✅ Admin operation permissions
+- ✅ Impersonation workflow validation
+- ✅ Assignment management logic
+- ✅ Health monitoring systems
+- ✅ Payment processing flows
+- ✅ Integration code management
+
+### Running Verification
+```bash
+# Run complete system verification
+node framtt-complete-system-verification.js
+
+# Expected output includes:
+# - Detailed progress for each component
+# - Success/failure status for each endpoint
+# - Security verification results
+# - Database schema validation
+# - Final compliance report with percentages
+```
+
 ## 🌐 Deployment Options
 
 ### Development
@@ -464,17 +549,23 @@ npm run deploy                # Deploy to production
 
 ### Testing & Validation
 ```bash
-# Test API endpoints
+# Comprehensive system verification (recommended)
+node framtt-complete-system-verification.js
+
+# Individual test scripts
 node scripts/verify-endpoints.js
-
-# Test authorization system  
 node scripts/test-authorization.js
-
-# Security verification
 node backend/tools/verify-security.js
-
-# Authentication testing
 node backend/tools/verify-auth.js
+
+# The complete verification covers:
+# - All 20 system components
+# - 100+ API endpoints across all routes
+# - Role hierarchy and access control
+# - Authentication and authorization flows
+# - Database schema validation
+# - Security measures and rate limiting
+# - Business logic verification
 ```
 
 ## 🚨 Troubleshooting

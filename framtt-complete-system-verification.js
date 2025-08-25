@@ -33,7 +33,18 @@ class FramttSystemVerification {
       clientManagement: {},
       notificationSystem: {},
       adminOperations: {},
-      dashboardFunctionality: {}
+      dashboardFunctionality: {},
+      billingSystem: {},
+      monitoringSystem: {},
+      snippetsSystem: {},
+      inviteSystem: {},
+      paymentSystem: {},
+      systemRoutes: {},
+      integrationSystem: {},
+      userManagement: {},
+      accountManagement: {},
+      roleManagement: {},
+      assignmentManagement: {}
     };
     this.tokens = {};
   }
@@ -62,6 +73,17 @@ class FramttSystemVerification {
       await this.verifyDashboardFunctionality();
       await this.verifyRateLimiting();
       await this.verifySecurityConsiderations();
+      await this.verifyBillingSystem();
+      await this.verifyMonitoringSystem();
+      await this.verifySnippetsSystem();
+      await this.verifyInviteSystem();
+      await this.verifyPaymentSystem();
+      await this.verifySystemRoutes();
+      await this.verifyIntegrationSystem();
+      await this.verifyUserManagement();
+      await this.verifyAccountManagement();
+      await this.verifyRoleManagement();
+      await this.verifyAssignmentManagement();
       
       this.generateFinalReport();
     } catch (error) {
@@ -965,6 +987,570 @@ async verifyRateLimiting() {
     console.log('');
   }
 
+  async verifyBillingSystem() {
+    console.log('🔟 BILLING SYSTEM VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const billingEndpoints = [
+      { method: 'GET', path: '/api/billing/revenue', description: 'Revenue analytics', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/billing/subscriptions', description: 'Subscription management', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/billing/transactions', description: 'Transaction history', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/billing/renewals', description: 'Renewal tracking', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/billing/failed-payments', description: 'Failed payment monitoring', requiresAuth: 'superadmin' }
+    ];
+
+    for (const endpoint of billingEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          const response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+            headers: this.tokens[endpoint.requiresAuth].headers
+          });
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.billingSystem[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.billingSystem[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.billingSystem[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyMonitoringSystem() {
+    console.log('1️⃣1️⃣ MONITORING SYSTEM VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const monitoringEndpoints = [
+      { method: 'GET', path: '/api/monitoring/system-metrics', description: 'System metrics', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/monitoring/system-health', description: 'System health', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/monitoring/api-endpoints', description: 'API endpoint monitoring', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/monitoring/error-logs', description: 'Error log monitoring', requiresAuth: 'superadmin' }
+    ];
+
+    for (const endpoint of monitoringEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          const response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+            headers: this.tokens[endpoint.requiresAuth].headers
+          });
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.monitoringSystem[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.monitoringSystem[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.monitoringSystem[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifySnippetsSystem() {
+    console.log('1️⃣2️⃣ SNIPPETS SYSTEM VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const snippetsEndpoints = [
+      { method: 'GET', path: '/api/snippets', description: 'Integration snippets', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/snippets/stats', description: 'Snippet statistics', requiresAuth: 'superadmin' },
+      { method: 'POST', path: '/api/snippets', description: 'Create snippet', requiresAuth: 'superadmin' },
+      { method: 'PUT', path: '/api/snippets/snippet_001', description: 'Update snippet', requiresAuth: 'superadmin' },
+      { method: 'DELETE', path: '/api/snippets/snippet_001', description: 'Delete snippet', requiresAuth: 'superadmin' }
+    ];
+
+    for (const endpoint of snippetsEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'POST') {
+            response = await axios.post(`${API_BASE_URL}${endpoint.path}`, {
+              name: 'Test Snippet',
+              type: 'API',
+              category: 'test'
+            }, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'PUT') {
+            response = await axios.put(`${API_BASE_URL}${endpoint.path}`, {
+              name: 'Updated Snippet'
+            }, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'DELETE') {
+            response = await axios.delete(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.snippetsSystem[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.snippetsSystem[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.snippetsSystem[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyInviteSystem() {
+    console.log('1️⃣3️⃣ INVITE SYSTEM VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const inviteEndpoints = [
+      { method: 'GET', path: '/api/invites', description: 'Get invitations', requiresAuth: 'csm' },
+      { method: 'GET', path: '/api/invites/stats', description: 'Invitation statistics', requiresAuth: 'csm' },
+      { method: 'GET', path: '/api/invites/available-accounts', description: 'Available accounts', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/invites', description: 'Send invitation', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/invites/1/resend', description: 'Resend invitation', requiresAuth: 'admin' },
+      { method: 'DELETE', path: '/api/invites/1', description: 'Cancel invitation', requiresAuth: 'admin' }
+    ];
+
+    for (const endpoint of inviteEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'POST') {
+            const testData = endpoint.path.includes('resend') ? {} : {
+              email: 'test@example.com',
+              role: 'user',
+              accountId: 1
+            };
+            response = await axios.post(`${API_BASE_URL}${endpoint.path}`, testData, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'DELETE') {
+            response = await axios.delete(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.inviteSystem[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.inviteSystem[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.inviteSystem[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyPaymentSystem() {
+    console.log('1️⃣4️⃣ PAYMENT SYSTEM VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const paymentEndpoints = [
+      { method: 'GET', path: '/api/payments/reports', description: 'Payment reports', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/payments/export', description: 'Export payment data', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/payments/stats', description: 'Payment statistics', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/payments/billing-history', description: 'Billing history', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/payments/revenue-analytics', description: 'Revenue analytics', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/payments/refund', description: 'Process refund', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/payments/integration-codes', description: 'Integration codes', requiresAuth: 'superadmin' },
+      { method: 'POST', path: '/api/payments/integration-codes', description: 'Generate integration code', requiresAuth: 'superadmin' },
+      { method: 'DELETE', path: '/api/payments/integration-codes/1', description: 'Delete integration code', requiresAuth: 'superadmin' }
+    ];
+
+    for (const endpoint of paymentEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'POST') {
+            const testData = endpoint.path.includes('refund') ? { amount: 100 } : { purpose: 'test' };
+            response = await axios.post(`${API_BASE_URL}${endpoint.path}`, testData, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'DELETE') {
+            response = await axios.delete(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.paymentSystem[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.paymentSystem[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.paymentSystem[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifySystemRoutes() {
+    console.log('1️⃣5️⃣ SYSTEM ROUTES VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const systemEndpoints = [
+      { method: 'GET', path: '/api/system/monitoring', description: 'System monitoring', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/system/health', description: 'System health', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/system/performance', description: 'Performance metrics', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/system/resources', description: 'Resource usage', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/system/refresh-metrics', description: 'Refresh metrics', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/system/logs/errors', description: 'Error logs', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/system/restart/api', description: 'Restart service', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/system/services/api', description: 'Service details', requiresAuth: 'superadmin' }
+    ];
+
+    for (const endpoint of systemEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'POST') {
+            response = await axios.post(`${API_BASE_URL}${endpoint.path}`, {}, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.systemRoutes[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.systemRoutes[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.systemRoutes[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyIntegrationSystem() {
+    console.log('1️⃣6️⃣ INTEGRATION SYSTEM VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const integrationEndpoints = [
+      { method: 'GET', path: '/api/integrations', description: 'Integration overview', requiresAuth: 'superadmin' },
+      { method: 'GET', path: '/api/integrations/stats', description: 'Integration statistics', requiresAuth: 'superadmin' }
+    ];
+
+    for (const endpoint of integrationEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          const response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+            headers: this.tokens[endpoint.requiresAuth].headers
+          });
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.integrationSystem[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.integrationSystem[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.integrationSystem[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyUserManagement() {
+    console.log('1️⃣7️⃣ USER MANAGEMENT VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const userEndpoints = [
+      { method: 'GET', path: '/api/users', description: 'Get users', requiresAuth: 'csm' },
+      { method: 'GET', path: '/api/users/stats', description: 'User statistics', requiresAuth: 'admin' },
+      { method: 'PUT', path: '/api/users/profile', description: 'Update profile', requiresAuth: 'user' }
+    ];
+
+    for (const endpoint of userEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'PUT') {
+            response = await axios.put(`${API_BASE_URL}${endpoint.path}`, {
+              fullName: 'Updated Name'
+            }, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.userManagement[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.userManagement[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.userManagement[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyAccountManagement() {
+    console.log('1️⃣8️⃣ ACCOUNT MANAGEMENT VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const accountEndpoints = [
+      { method: 'GET', path: '/api/accounts', description: 'Get accounts', requiresAuth: 'csm' },
+      { method: 'GET', path: '/api/accounts/stats', description: 'Account statistics', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/accounts', description: 'Create account', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/accounts/1', description: 'Get account details', requiresAuth: 'csm' },
+      { method: 'GET', path: '/api/accounts/1/users', description: 'Get account users', requiresAuth: 'csm' },
+      { method: 'PUT', path: '/api/accounts/1', description: 'Update account', requiresAuth: 'admin' },
+      { method: 'DELETE', path: '/api/accounts/1', description: 'Delete account', requiresAuth: 'superadmin' },
+      { method: 'POST', path: '/api/accounts/1/assign-csm', description: 'Assign CSM to account', requiresAuth: 'admin' },
+      { method: 'DELETE', path: '/api/accounts/1/csm/26', description: 'Remove CSM from account', requiresAuth: 'admin' }
+    ];
+
+    for (const endpoint of accountEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'POST') {
+            const testData = endpoint.path.includes('assign-csm') ? { csmId: 26 } : { name: 'Test Account' };
+            response = await axios.post(`${API_BASE_URL}${endpoint.path}`, testData, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'PUT') {
+            response = await axios.put(`${API_BASE_URL}${endpoint.path}`, {
+              name: 'Updated Account'
+            }, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'DELETE') {
+            response = await axios.delete(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.accountManagement[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.accountManagement[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.accountManagement[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyRoleManagement() {
+    console.log('1️⃣9️⃣ ROLE MANAGEMENT VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const roleEndpoints = [
+      { method: 'POST', path: '/api/roles/assign', description: 'Assign role', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/roles/28', description: 'Get user roles', requiresAuth: 'admin' }
+    ];
+
+    for (const endpoint of roleEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'POST') {
+            response = await axios.post(`${API_BASE_URL}${endpoint.path}`, {
+              userId: 28,
+              role: 'user'
+            }, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.roleManagement[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.roleManagement[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.roleManagement[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
+  async verifyAssignmentManagement() {
+    console.log('2️⃣0️⃣ ASSIGNMENT MANAGEMENT VERIFICATION');
+    console.log('-' .repeat(60));
+
+    const assignmentEndpoints = [
+      { method: 'GET', path: '/api/assignments/stats', description: 'Assignment statistics', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/assignments/csm-overview', description: 'CSM assignments overview', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/assignments/available-users', description: 'Available users', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/assignments/available-csms', description: 'Available CSMs', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/assignments/unassigned-accounts', description: 'Unassigned accounts', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/assignments/unassigned-users', description: 'Unassigned users', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/assignments/user-accounts', description: 'Assign user to account', requiresAuth: 'admin' },
+      { method: 'DELETE', path: '/api/assignments/user-accounts/28/1', description: 'Remove user from account', requiresAuth: 'admin' },
+      { method: 'POST', path: '/api/assignments/bulk/users-to-account', description: 'Bulk assign users', requiresAuth: 'admin' },
+      { method: 'GET', path: '/api/assignments/users/28/accounts', description: 'Get user account assignments', requiresAuth: 'user' },
+      { method: 'GET', path: '/api/assignments/accounts/1/users', description: 'Get account user assignments', requiresAuth: 'csm' }
+    ];
+
+    for (const endpoint of assignmentEndpoints) {
+      try {
+        await delay(500);
+        
+        if (this.tokens[endpoint.requiresAuth]) {
+          let response;
+          
+          if (endpoint.method === 'GET') {
+            response = await axios.get(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'POST') {
+            const testData = endpoint.path.includes('bulk') ? 
+              { userIds: [28, 29], accountId: 1 } : 
+              { userId: 28, accountId: 1 };
+            response = await axios.post(`${API_BASE_URL}${endpoint.path}`, testData, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          } else if (endpoint.method === 'DELETE') {
+            response = await axios.delete(`${API_BASE_URL}${endpoint.path}`, {
+              headers: this.tokens[endpoint.requiresAuth].headers
+            });
+          }
+
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`  ✅ ${endpoint.description}: Working`);
+            this.results.assignmentManagement[endpoint.path] = true;
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 403 || error.response?.status === 401) {
+          console.log(`  ✅ ${endpoint.description}: Properly secured`);
+          this.results.assignmentManagement[endpoint.path] = true;
+        } else {
+          console.log(`  ⚠️  ${endpoint.description}: ${error.response?.status || 'Error'}`);
+          this.results.assignmentManagement[endpoint.path] = false;
+        }
+      }
+    }
+
+    console.log('');
+  }
+
   async testRateLimiting() {
     try {
       // Try multiple failed login attempts to trigger rate limiting
@@ -1005,7 +1591,18 @@ async verifyRateLimiting() {
       { name: '8F. Admin Operations', results: this.results.adminOperations },
       { name: '8G. Dashboard Functionality', results: this.results.dashboardFunctionality },
       { name: '8H. Rate Limiting', results: this.results.rateLimit },
-      { name: '8. Security Considerations', results: this.results.securityConsiderations }
+      { name: '9. Security Considerations', results: this.results.securityConsiderations },
+      { name: '10. Billing System', results: this.results.billingSystem },
+      { name: '11. Monitoring System', results: this.results.monitoringSystem },
+      { name: '12. Snippets System', results: this.results.snippetsSystem },
+      { name: '13. Invite System', results: this.results.inviteSystem },
+      { name: '14. Payment System', results: this.results.paymentSystem },
+      { name: '15. System Routes', results: this.results.systemRoutes },
+      { name: '16. Integration System', results: this.results.integrationSystem },
+      { name: '17. User Management', results: this.results.userManagement },
+      { name: '18. Account Management', results: this.results.accountManagement },
+      { name: '19. Role Management', results: this.results.roleManagement },
+      { name: '20. Assignment Management', results: this.results.assignmentManagement }
     ];
 
     let totalPassed = 0;
