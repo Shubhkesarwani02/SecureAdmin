@@ -34,6 +34,8 @@ const getUsers = asyncHandler(async (req, res) => {
 
   let result;
 
+  console.log('DEBUG getUsers - currentUserRole:', currentUserRole, 'currentUserId:', currentUserId);
+
   // Apply role-based filtering
   if (currentUserRole === 'admin') {
     // Admin can see CSMs and regular users, but not other admins or superadmins
@@ -42,27 +44,70 @@ const getUsers = asyncHandler(async (req, res) => {
     } else if (!['csm', 'user'].includes(role)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Cannot view users with this role.'
+        message: 'Access denied. Admin can only view CSM and regular users.'
       });
     }
     result = await userService.getAll(options);
-  } else if (currentUserRole === 'csm') {
-    // CSM can only see users in their assigned accounts
-    if (role && role !== 'user') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. CSMs can only view regular users in assigned accounts.'
-      });
-    }
-    // Use the new getUsersByCSM function
-    result = await userService.getUsersByCSM(currentUserId, options);
   } else if (currentUserRole === 'superadmin') {
     // Superadmin can see all users
     result = await userService.getAll(options);
+  } else if (currentUserRole === 'csm') {
+    console.log('DEBUG getUsers - CSM role detected');
+    // CSM can see all assigned users in their accounts
+    const { csmAssignmentService, userAccountService } = require('../services/database');
+    
+    // Get all accounts assigned to this CSM
+    const csmAssignments = await csmAssignmentService.getByCSM(currentUserId);
+    const accountIds = csmAssignments.map(assignment => assignment.account_id);
+    
+    console.log('DEBUG getUsers - CSM assignments:', csmAssignments);
+    console.log('DEBUG getUsers - Account IDs:', accountIds);
+    
+    if (accountIds.length === 0) {
+      // CSM with no accounts assigned, return empty result but don't block access
+      result = { users: [], totalCount: 0 };
+    } else {
+      // Get all users in the assigned accounts
+      const query = `
+        SELECT DISTINCT u.*, 
+               COUNT(*) OVER() as total_count
+        FROM users u
+        INNER JOIN user_accounts ua ON u.id = ua.user_id
+        WHERE ua.account_id = ANY($1::bigint[])
+          AND u.role = 'user'
+          AND ($2::text IS NULL OR u.full_name ILIKE $2 OR u.email ILIKE $2)
+          AND ($3::text IS NULL OR u.status = $3)
+        ORDER BY ${sortBy || 'created_at'} ${sortOrder === 'asc' ? 'ASC' : 'DESC'}
+        LIMIT $4 OFFSET $5
+      `;
+      
+      const searchParam = search ? `%${search}%` : null;
+      const offset = (page - 1) * limit;
+      
+      const queryResult = await userService.executeQuery(query, [
+        accountIds,
+        searchParam,
+        status,
+        limit,
+        offset
+      ]);
+      
+      const users = queryResult.rows || [];
+      const totalCount = users.length > 0 ? parseInt(users[0].total_count) : 0;
+      
+      result = {
+        users: users.map(user => {
+          const { total_count, ...userData } = user;
+          return userData;
+        }),
+        totalCount
+      };
+    }
   } else {
+    // Other roles have no access to user management
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Insufficient privileges to view users.'
+      message: 'Access denied. Insufficient permissions to view users.'
     });
   }
 
@@ -338,10 +383,30 @@ const updateUser = asyncHandler(async (req, res) => {
     }
 
     if (currentUserRole === 'csm') {
-      return res.status(403).json({
-        success: false,
-        message: 'CSM cannot update other users'
-      });
+      // CSM can update users in their assigned accounts only
+      if (user.role !== 'user') {
+        return res.status(403).json({
+          success: false,
+          message: 'CSM can only update regular users in assigned accounts'
+        });
+      }
+
+      // Check if the user belongs to any account assigned to this CSM
+      const { userAccountService, csmAssignmentService } = require('../services/database');
+      
+      const userAccounts = await userAccountService.getByUser(id);
+      const csmAssignments = await csmAssignmentService.getByCSM(currentUserId);
+      
+      const hasCommonAccount = userAccounts.some(userAccount => 
+        csmAssignments.some(assignment => assignment.account_id === userAccount.account_id)
+      );
+      
+      if (!hasCommonAccount) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. This user is not in any account assigned to you.'
+        });
+      }
     }
   }
 
@@ -357,6 +422,16 @@ const updateUser = asyncHandler(async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Admin cannot assign admin or superadmin roles'
+      });
+    }
+  } else if (currentUserRole === 'csm' && currentUserId !== id) {
+    // CSM can update basic user fields for assigned accounts
+    allowedFields.push('department', 'status');
+    // CSM cannot change user roles
+    if (updateData.role) {
+      return res.status(403).json({
+        success: false,
+        message: 'CSM cannot change user roles'
       });
     }
   }
@@ -642,33 +717,82 @@ const updateProfile = asyncHandler(async (req, res) => {
 
 // @desc    Get user statistics
 // @route   GET /api/users/stats
-// @access  Private (Admin/Superadmin)
+// @access  Private (Admin/Superadmin/CSM)
 const getUserStats = asyncHandler(async (req, res) => {
   const currentUserRole = req.user.role;
+  const currentUserId = req.user.id;
 
-  if (!['admin', 'superadmin'].includes(currentUserRole)) {
+  if (!['admin', 'superadmin', 'csm'].includes(currentUserRole)) {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Only admins can view user statistics.'
+      message: 'Access denied. Insufficient permissions to view user statistics.'
     });
   }
 
   try {
     const { query } = require('../services/database');
+    let statsResult;
     
-    const statsResult = await query(`
-      SELECT 
-        COUNT(*) as total_users,
-        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_users,
-        COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_users,
-        COUNT(CASE WHEN role = 'superadmin' THEN 1 END) as superadmin_count,
-        COUNT(CASE WHEN role = 'admin' THEN 1 END) as admin_count,
-        COUNT(CASE WHEN role = 'csm' THEN 1 END) as csm_count,
-        COUNT(CASE WHEN role = 'user' THEN 1 END) as user_count,
-        COUNT(CASE WHEN last_login >= NOW() - INTERVAL '7 days' THEN 1 END) as recently_active
-      FROM users 
-      WHERE status != 'deleted'
-    `);
+    if (currentUserRole === 'superadmin') {
+      // Superadmin sees all user stats
+      statsResult = await query(`
+        SELECT 
+          COUNT(*) as total_users,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as active_users,
+          COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_users,
+          COUNT(CASE WHEN role = 'superadmin' THEN 1 END) as superadmin_count,
+          COUNT(CASE WHEN role = 'admin' THEN 1 END) as admin_count,
+          COUNT(CASE WHEN role = 'csm' THEN 1 END) as csm_count,
+          COUNT(CASE WHEN role = 'user' THEN 1 END) as user_count,
+          COUNT(CASE WHEN last_login >= NOW() - INTERVAL '7 days' THEN 1 END) as recently_active
+        FROM users 
+        WHERE status != 'deleted'
+      `);
+    } else if (currentUserRole === 'admin') {
+      // Admin sees CSMs and regular users only
+      statsResult = await query(`
+        SELECT 
+          COUNT(*) as total_users,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as active_users,
+          COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_users,
+          0 as superadmin_count,
+          0 as admin_count,
+          COUNT(CASE WHEN role = 'csm' THEN 1 END) as csm_count,
+          COUNT(CASE WHEN role = 'user' THEN 1 END) as user_count,
+          COUNT(CASE WHEN last_login >= NOW() - INTERVAL '7 days' THEN 1 END) as recently_active
+        FROM users 
+        WHERE status != 'deleted' AND role IN ('csm', 'user')
+      `);
+    } else if (currentUserRole === 'csm') {
+      // CSM sees only users in their assigned accounts
+      const { csmAssignmentService } = require('../services/database');
+      const csmAssignments = await csmAssignmentService.getByCSM(currentUserId);
+      const accountIds = csmAssignments.map(assignment => assignment.account_id);
+      
+      if (accountIds.length === 0) {
+        statsResult = { rows: [{ 
+          total_users: 0, active_users: 0, inactive_users: 0,
+          superadmin_count: 0, admin_count: 0, csm_count: 0, user_count: 0, recently_active: 0 
+        }] };
+      } else {
+        statsResult = await query(`
+          SELECT 
+            COUNT(DISTINCT u.id) as total_users,
+            COUNT(DISTINCT CASE WHEN u.status = 'active' THEN u.id END) as active_users,
+            COUNT(DISTINCT CASE WHEN u.status = 'inactive' THEN u.id END) as inactive_users,
+            0 as superadmin_count,
+            0 as admin_count,
+            0 as csm_count,
+            COUNT(DISTINCT CASE WHEN u.role = 'user' THEN u.id END) as user_count,
+            COUNT(DISTINCT CASE WHEN u.last_login >= NOW() - INTERVAL '7 days' THEN u.id END) as recently_active
+          FROM users u
+          INNER JOIN user_accounts ua ON u.id = ua.user_id
+          WHERE u.status != 'deleted' 
+            AND u.role = 'user'
+            AND ua.account_id = ANY($1::bigint[])
+        `, [accountIds]);
+      }
+    }
 
     const stats = statsResult.rows[0];
 
@@ -696,6 +820,140 @@ const getUserStats = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get CSM dashboard with account health overview
+// @route   GET /api/users/csm/dashboard
+// @access  Private (CSM)
+const getCsmDashboard = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  // Check if user is CSM
+  if (currentUserRole !== 'csm') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. This endpoint is only available for CSMs.'
+    });
+  }
+
+  try {
+    // Get CSM assignments
+    const csmAssignments = await csmAssignmentService.getByCSM(currentUserId);
+    const assignedAccountIds = csmAssignments.map(assignment => assignment.account_id);
+
+    // Mock account health data - in real implementation, this would come from the database
+    const mockHealthScores = [
+      { clientId: 1, companyName: 'Premium Fleet Services', overallScore: 92, riskLevel: 'low', churnProbability: 5.0 },
+      { clientId: 2, companyName: 'Elite Car Rentals', overallScore: 87, riskLevel: 'low', churnProbability: 8.5 },
+      { clientId: 3, companyName: 'Coastal Vehicle Co', overallScore: 75, riskLevel: 'medium', churnProbability: 18.0 },
+      { clientId: 4, companyName: 'Metro Transit Solutions', overallScore: 68, riskLevel: 'medium', churnProbability: 25.5 },
+      { clientId: 5, companyName: 'Sunshine Auto Rental', overallScore: 45, riskLevel: 'critical', churnProbability: 65.0 }
+    ];
+
+    const mockAlerts = [
+      { clientId: 3, severity: 'medium', alertType: 'usage_decline', status: 'active' },
+      { clientId: 4, severity: 'high', alertType: 'engagement_drop', status: 'active' },
+      { clientId: 5, severity: 'critical', alertType: 'payment_overdue', status: 'active' }
+    ];
+
+    if (assignedAccountIds.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          assignedAccounts: [],
+          accountHealth: {
+            totalAccounts: 0,
+            healthyAccounts: 0,
+            atRiskAccounts: 0,
+            criticalAccounts: 0,
+            averageHealthScore: 0
+          },
+          alerts: {
+            total: 0,
+            critical: 0,
+            high: 0,
+            medium: 0
+          },
+          recentActivity: []
+        }
+      });
+    }
+
+    // Filter health data for assigned accounts
+    const assignedHealthScores = mockHealthScores.filter(score => 
+      assignedAccountIds.includes(score.clientId)
+    );
+
+    const assignedAlerts = mockAlerts.filter(alert => 
+      assignedAccountIds.includes(alert.clientId) && alert.status === 'active'
+    );
+
+    // Calculate health summary
+    const healthSummary = {
+      totalAccounts: assignedHealthScores.length,
+      healthyAccounts: assignedHealthScores.filter(score => score.riskLevel === 'low').length,
+      atRiskAccounts: assignedHealthScores.filter(score => score.riskLevel === 'medium').length,
+      criticalAccounts: assignedHealthScores.filter(score => score.riskLevel === 'critical').length,
+      averageHealthScore: assignedHealthScores.length > 0 ? Math.round(
+        assignedHealthScores.reduce((sum, score) => sum + score.overallScore, 0) / 
+        assignedHealthScores.length
+      ) : 0
+    };
+
+    // Calculate alerts summary
+    const alertsSummary = {
+      total: assignedAlerts.length,
+      critical: assignedAlerts.filter(alert => alert.severity === 'critical').length,
+      high: assignedAlerts.filter(alert => alert.severity === 'high').length,
+      medium: assignedAlerts.filter(alert => alert.severity === 'medium').length
+    };
+
+    // Prepare account list with health info
+    const accountsWithHealth = csmAssignments.map(assignment => {
+      const healthData = assignedHealthScores.find(score => score.clientId === assignment.account_id);
+      const accountAlerts = assignedAlerts.filter(alert => alert.clientId === assignment.account_id);
+      
+      return {
+        accountId: assignment.account_id,
+        accountName: assignment.account_name,
+        companyName: assignment.company_name,
+        isPrimary: assignment.is_primary,
+        assignedAt: assignment.assigned_at,
+        healthScore: healthData ? healthData.overallScore : null,
+        riskLevel: healthData ? healthData.riskLevel : 'unknown',
+        activeAlerts: accountAlerts.length,
+        churnProbability: healthData ? healthData.churnProbability : null
+      };
+    });
+
+    // Sort accounts by risk level (critical first)
+    const riskOrder = { 'critical': 3, 'medium': 2, 'low': 1, 'unknown': 0 };
+    accountsWithHealth.sort((a, b) => riskOrder[b.riskLevel] - riskOrder[a.riskLevel]);
+
+    res.json({
+      success: true,
+      data: {
+        assignedAccounts: accountsWithHealth,
+        accountHealth: healthSummary,
+        alerts: alertsSummary,
+        recentActivity: assignedAlerts.slice(0, 5).map(alert => ({
+          clientId: alert.clientId,
+          companyName: assignedHealthScores.find(s => s.clientId === alert.clientId)?.companyName || 'Unknown',
+          alertType: alert.alertType,
+          severity: alert.severity,
+          createdAt: new Date().toISOString()
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting CSM dashboard:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving CSM dashboard data'
+    });
+  }
+});
+
 module.exports = {
   getUsers,
   getUser,
@@ -705,5 +963,6 @@ module.exports = {
   assignCSMToAccounts,
   getCSMAssignments,
   updateProfile,
-  getUserStats
+  getUserStats,
+  getCsmDashboard
 };

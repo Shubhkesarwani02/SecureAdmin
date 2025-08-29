@@ -1,6 +1,7 @@
 const { asyncHandler } = require('../middleware/errorHandler');
 const inviteService = require('../services/inviteService');
 const { userService, auditService } = require('../services/database');
+const emailService = require('../services/emailService');
 
 // @desc    Send invitation
 // @route   POST /api/invites
@@ -36,6 +37,13 @@ const sendInvitation = asyncHandler(async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Admin can only invite CSM and regular user accounts'
+      });
+    }
+  } else if (currentUserRole === 'csm') {
+    if (!['user'].includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'CSM can only invite regular user accounts'
       });
     }
   }
@@ -115,8 +123,27 @@ const sendInvitation = asyncHandler(async (req, res) => {
 
     // TODO: Send email with onboarding link (implement email service)
     if (sendEmail) {
-      // Email service implementation would go here
-      console.log(`Invitation email would be sent to ${email} with link: ${onboardingUrl}`);
+      try {
+        // Get inviter information for email
+        const inviterResult = await userService.getById(currentUserId);
+        const inviterName = inviterResult?.full_name || 'Administrator';
+        
+        await emailService.sendInvitationEmail(email, {
+          fullName,
+          role,
+          onboardingUrl,
+          inviterName,
+          companyName,
+          expiresAt: invite.expires_at
+        });
+        
+        console.log(`✅ Invitation email sent to ${email}`);
+      } catch (emailError) {
+        console.error(`⚠️ Failed to send invitation email to ${email}:`, emailError);
+        // Continue without failing the invitation creation
+      }
+    } else {
+      console.log(`📧 Invitation created for ${email} with link: ${onboardingUrl}`);
     }
 
     res.status(201).json({
@@ -533,26 +560,59 @@ const getAvailableAccounts = asyncHandler(async (req, res) => {
   const currentUserRole = req.user.role;
 
   try {
-    // Mock accounts data - replace with real database call
-    const mockAccounts = [
-      { id: 1, name: 'Premium Fleet Services', companyName: 'Premium Fleet Inc.' },
-      { id: 2, name: 'Elite Car Rentals', companyName: 'Elite Motors LLC' },
-      { id: 3, name: 'Coastal Vehicle Co', companyName: 'Coastal Vehicles Corp' },
-      { id: 4, name: 'Metro Transit Solutions', companyName: 'Metro Transit Inc.' },
-      { id: 5, name: 'Sunshine Auto Rental', companyName: 'Sunshine Automotive' }
-    ];
+    let availableAccounts = [];
 
-    // Filter accounts based on role permissions
-    let availableAccounts = mockAccounts;
-    
-    if (currentUserRole === 'admin') {
-      // Admins can see all accounts they manage
-      availableAccounts = mockAccounts; // In real implementation, filter by admin's managed accounts
+    if (currentUserRole === 'superadmin') {
+      // Superadmin can see all accounts
+      const allAccountsQuery = `
+        SELECT 
+          c.id,
+          c.company_name as name,
+          c.company_name,
+          c.email,
+          c.status
+        FROM clients c 
+        WHERE c.status = 'active'
+        ORDER BY c.company_name
+      `;
+      const allAccountsResult = await userService.executeQuery(allAccountsQuery);
+      availableAccounts = allAccountsResult.rows || [];
+    } else if (currentUserRole === 'admin') {
+      // Admin can see all accounts they manage (for now, all accounts - can be restricted later)
+      const adminAccountsQuery = `
+        SELECT 
+          c.id,
+          c.company_name as name,
+          c.company_name,
+          c.email,
+          c.status
+        FROM clients c 
+        WHERE c.status = 'active'
+        ORDER BY c.company_name
+      `;
+      const adminAccountsResult = await userService.executeQuery(adminAccountsQuery);
+      availableAccounts = adminAccountsResult.rows || [];
+    } else if (currentUserRole === 'csm') {
+      // CSM can only see their assigned accounts
+      const csmAccountsQuery = `
+        SELECT 
+          c.id,
+          c.company_name as name,
+          c.company_name,
+          c.email,
+          c.status
+        FROM clients c 
+        INNER JOIN csm_assignments ca ON c.id = ca.account_id::bigint
+        WHERE ca.csm_id = $1 AND c.status = 'active'
+        ORDER BY c.company_name
+      `;
+      const csmAccountsResult = await userService.executeQuery(csmAccountsQuery, [currentUserId]);
+      availableAccounts = csmAccountsResult.rows || [];
     }
 
     res.status(200).json({
       success: true,
-      data: { accounts: availableAccounts }
+      data: availableAccounts
     });
   } catch (error) {
     console.error('Error fetching available accounts:', error);

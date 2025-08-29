@@ -6,7 +6,7 @@ const {
   updateVehicle,
   deleteVehicle,
   getVehicleStats
-} = require('../controllers/vehicleController');
+} = require('../controllers/vehicleController_enhanced');
 const { requireSuperAdmin } = require('../middleware/auth');
 
 const router = express.Router();

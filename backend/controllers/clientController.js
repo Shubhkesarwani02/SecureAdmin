@@ -1,11 +1,10 @@
-const { clients, integrationCodes } = require('../data/mockData');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { auditService } = require('../services/database');
+const { userService, auditService } = require('../services/database');
 const moment = require('moment');
 
-// @desc    Get all clients with filtering
+// @desc    Get all clients with role-based filtering
 // @route   GET /api/clients
-// @access  Private (Superadmin)
+// @access  Private (Role-based access)
 const getClients = asyncHandler(async (req, res) => {
   const { 
     status, 
@@ -13,41 +12,143 @@ const getClients = asyncHandler(async (req, res) => {
     plan,
     page = 1, 
     limit = 10,
-    sortBy = 'createdAt',
+    sortBy = 'created_at',
     sortOrder = 'desc'
   } = req.query;
 
-  let filteredClients = [...clients];
+  const currentUserId = req.user.id;
+  const currentUserRole = req.user.role;
 
-  // Apply filters
-  if (status && status !== 'all') {
-    filteredClients = filteredClients.filter(client => client.status === status);
-  }
+  try {
+    let baseQuery = `
+      SELECT 
+        c.id,
+        c.company_name,
+        c.email,
+        c.phone,
+        c.address,
+        c.status,
+        c.integration_code,
+        c.subscription_plan,
+        c.subscription_status,
+        c.subscription_amount,
+        c.next_billing_date,
+        c.ai_recommendation,
+        c.whatsapp_integration,
+        c.tracking_active,
+        c.marketing_active,
+        c.total_bookings,
+        c.active_vehicles,
+        c.monthly_revenue,
+        c.created_at,
+        c.updated_at,
+        c.last_login
+      FROM clients c
+    `;
 
-  if (search) {
-    const searchLower = search.toLowerCase();
-    filteredClients = filteredClients.filter(client => 
-      client.companyName.toLowerCase().includes(searchLower) ||
-      client.email.toLowerCase().includes(searchLower) ||
-      client.integrationCode.toLowerCase().includes(searchLower)
-    );
-  }
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
 
-  if (plan && plan !== 'all') {
-    filteredClients = filteredClients.filter(client => client.subscription.plan === plan);
-  }
-
-  // Apply sorting
-  filteredClients.sort((a, b) => {
-    let aVal = a[sortBy];
-    let bVal = b[sortBy];
-    
-    if (sortBy === 'monthlyRevenue') {
-      aVal = a.stats.monthlyRevenue;
-      bVal = b.stats.monthlyRevenue;
+    // Role-based access control
+    if (currentUserRole === 'superadmin') {
+      // Superadmin can see all clients
+    } else if (currentUserRole === 'admin') {
+      // Admin can see all assigned clients (for now all clients - can be restricted later with assignment table)
+    } else if (currentUserRole === 'csm') {
+      // CSM can only see their assigned clients
+      baseQuery += ` INNER JOIN csm_assignments ca ON c.id = ca.account_id::bigint`;
+      whereConditions.push(`ca.csm_id = $${paramIndex}`);
+      queryParams.push(currentUserId);
+      paramIndex++;
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions to view clients'
+      });
     }
+
+    // Apply filters
+    if (status && status !== 'all') {
+      whereConditions.push(`c.status = $${paramIndex}`);
+      queryParams.push(status);
+      paramIndex++;
+    }
+
+    if (search) {
+      whereConditions.push(`(
+        LOWER(c.company_name) LIKE $${paramIndex} OR 
+        LOWER(c.email) LIKE $${paramIndex} OR 
+        LOWER(c.integration_code) LIKE $${paramIndex}
+      )`);
+      queryParams.push(`%${search.toLowerCase()}%`);
+      paramIndex++;
+    }
+
+    if (plan && plan !== 'all') {
+      whereConditions.push(`c.subscription_plan = $${paramIndex}`);
+      queryParams.push(plan);
+      paramIndex++;
+    }
+
+    // Add WHERE clause if there are conditions
+    if (whereConditions.length > 0) {
+      baseQuery += ` WHERE ${whereConditions.join(' AND ')}`;
+    }
+
+    // Apply sorting and pagination
+    const validSortFields = ['created_at', 'company_name', 'status', 'subscription_plan', 'monthly_revenue'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const order = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
     
-    if (typeof aVal === 'string') {
+    baseQuery += ` ORDER BY c.${sortField} ${order}`;
+    
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM clients c
+      ${currentUserRole === 'csm' ? 'INNER JOIN csm_assignments ca ON c.id = ca.account_id::bigint' : ''}
+      ${whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''}
+    `;
+    
+    const countResult = await userService.executeQuery(countQuery, queryParams);
+    const totalItems = parseInt(countResult.rows[0]?.total || 0);
+
+    // Apply pagination
+    const offset = (page - 1) * limit;
+    baseQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    queryParams.push(parseInt(limit), offset);
+
+    const result = await userService.executeQuery(baseQuery, queryParams);
+    const clients = result.rows || [];
+
+    // Log audit trail
+    await auditService.logAction(
+      currentUserId,
+      'clients',
+      'view',
+      null,
+      { 
+        filters: { status, search, plan },
+        resultCount: clients.length,
+        userRole: currentUserRole
+      },
+      req.ip,
+      req.get('User-Agent')
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        clients,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalItems / limit),
+          totalItems,
+          itemsPerPage: parseInt(limit)
+        }
+      }
+    });
       aVal = aVal.toLowerCase();
       bVal = bVal.toLowerCase();
     }

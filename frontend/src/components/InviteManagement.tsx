@@ -8,9 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Alert, AlertDescription } from "./ui/alert";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { apiClient, type ApiResponse } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Send, Copy, Trash2, RefreshCw, AlertCircle, CheckCircle, Clock, XCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { apiClient } from '../lib/api';
 
 interface Account {
   id: number;
@@ -57,6 +58,7 @@ interface InviteFormData {
 }
 
 const InviteManagement: React.FC = () => {
+  const { userProfile } = useAuth();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [stats, setStats] = useState<InviteStats | null>(null);
@@ -77,6 +79,31 @@ const InviteManagement: React.FC = () => {
   });
 
   const [formErrors, setFormErrors] = useState<Partial<InviteFormData>>({});
+
+  // Get available roles based on current user role
+  const getAvailableRoles = () => {
+    if (!userProfile) return [];
+    
+    switch (userProfile.role) {
+      case 'superadmin':
+        return [
+          { value: 'admin', label: 'Admin' },
+          { value: 'csm', label: 'CSM' },
+          { value: 'user', label: 'User' }
+        ];
+      case 'admin':
+        return [
+          { value: 'csm', label: 'CSM' },
+          { value: 'user', label: 'User' }
+        ];
+      case 'csm':
+        return [
+          { value: 'user', label: 'User' }
+        ];
+      default:
+        return [];
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -135,21 +162,33 @@ const InviteManagement: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const response = await apiClient.getInviteHistory({ limit: 1000 }); // Get all for stats calculation
+      const response = await apiClient.getInviteStats();
       
       if (response.success) {
-        const invites = response.data?.invitations || [];
-        const stats = {
-          total_invites: invites.length,
-          pending_invites: invites.filter((inv: any) => inv.status === 'pending').length,
-          completed_invites: invites.filter((inv: any) => inv.status === 'used').length,
-          expired_invites: invites.filter((inv: any) => inv.status === 'expired').length,
-          cancelled_invites: invites.filter((inv: any) => inv.status === 'cancelled').length,
-        };
-        setStats(stats);
+        setStats(response.data || {
+          total_invites: 0,
+          pending_invites: 0,
+          completed_invites: 0,
+          expired_invites: 0,
+          cancelled_invites: 0
+        });
       } else {
         console.error('Failed to load stats:', response.message);
-        setStats(null);
+        // Fallback to calculating from invitations
+        const response2 = await apiClient.getInviteHistory({ limit: 1000 });
+        if (response2.success) {
+          const invites = response2.data?.invitations || [];
+          const stats = {
+            total_invites: invites.length,
+            pending_invites: invites.filter((inv: any) => inv.status === 'pending').length,
+            completed_invites: invites.filter((inv: any) => inv.status === 'used').length,
+            expired_invites: invites.filter((inv: any) => inv.status === 'expired').length,
+            cancelled_invites: invites.filter((inv: any) => inv.status === 'cancelled').length,
+          };
+          setStats(stats);
+        } else {
+          setStats(null);
+        }
       }
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -199,7 +238,11 @@ const InviteManagement: React.FC = () => {
         email: formData.email.trim(),
         role: formData.role,
         accountId: formData.accountId || undefined,
-        message: `Welcome! Your account details: Company: ${formData.companyName.trim() || 'N/A'}, Full Name: ${formData.fullName.trim()}, Phone: ${formData.phone.trim() || 'N/A'}`
+        companyName: formData.companyName.trim() || undefined,
+        fullName: formData.fullName.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        expiresIn: formData.expiresIn,
+        sendEmail: false // For now, let's not send emails and just get the URL
       });
 
       if (!response.success) {
@@ -207,6 +250,13 @@ const InviteManagement: React.FC = () => {
       }
 
       toast.success(`Invitation sent successfully to ${formData.email}`);
+      
+      // Show the onboarding URL if available
+      if (response.data?.onboardingUrl) {
+        toast.success(`Invitation URL: ${response.data.onboardingUrl}`, {
+          duration: 10000,
+        });
+      }
 
       // Reset form and close dialog
       setFormData({
@@ -232,10 +282,20 @@ const InviteManagement: React.FC = () => {
 
   const handleResendInvite = async (inviteId: number) => {
     try {
-      // Since we don't have a specific resend endpoint, let's reload the data
-      console.log('Resending invite for ID:', inviteId);
-      toast.success("Invitation resend feature is being prepared. The invitation is still active.");
-      loadData();
+      const response = await apiClient.resendInvitation(inviteId);
+      
+      if (response.success) {
+        toast.success("Invitation resent successfully");
+        // Show the new onboarding URL if available
+        if (response.data?.onboardingUrl) {
+          toast.success(`New invitation URL: ${response.data.onboardingUrl}`, {
+            duration: 10000,
+          });
+        }
+        loadData();
+      } else {
+        throw new Error(response.message || 'Failed to resend invitation');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to resend invitation');
     }
@@ -243,20 +303,31 @@ const InviteManagement: React.FC = () => {
 
   const handleCancelInvite = async (inviteId: number) => {
     try {
-      // Since we don't have a specific cancel endpoint, let's just show a message
-      console.log('Cancelling invite for ID:', inviteId);
-      toast.success("Invitation cancel feature is being prepared. Please contact support for urgent requests.");
-      loadData();
+      const response = await apiClient.cancelInvitation(inviteId);
+      
+      if (response.success) {
+        toast.success("Invitation cancelled successfully");
+        loadData();
+      } else {
+        throw new Error(response.message || 'Failed to cancel invitation');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to cancel invitation');
     }
   };
 
-  const copyInviteLink = async (token: string) => {
-    const url = `${window.location.origin}/onboarding?token=${token}`;
+  const copyInviteLink = async (invitation: Invitation) => {
+    // For now, we'll need to extract the token from the invite data
+    // Since the backend creates tokens but we might not have them in the list response,
+    // we'll show a placeholder for now
+    const url = `${window.location.origin}/onboarding?token=${invitation.token || 'TOKEN_PLACEHOLDER'}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast.success("Invitation link copied to clipboard");
+      if (invitation.token) {
+        toast.success("Invitation link copied to clipboard");
+      } else {
+        toast.warning("Invitation link template copied. The actual token needs to be retrieved from the backend.");
+      }
     } catch (error) {
       toast.error("Failed to copy link to clipboard");
     }
@@ -358,8 +429,11 @@ const InviteManagement: React.FC = () => {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="csm">CSM</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
+                    {getAvailableRoles().map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {formErrors.role && (
@@ -599,7 +673,7 @@ const InviteManagement: React.FC = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => copyInviteLink(invite.token || invite.id.toString())}
+                              onClick={() => copyInviteLink(invite)}
                               title="Copy invitation link"
                             >
                               <Copy className="w-3 h-3" />

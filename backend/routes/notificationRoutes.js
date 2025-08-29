@@ -5,7 +5,7 @@ const {
   markAllNotificationsAsRead,
   createNotification,
   deleteNotification
-} = require('../controllers/notificationController');
+} = require('../controllers/notificationController_enhanced');
 const { verifyToken, requireSuperAdmin } = require('../middleware/auth');
 
 const router = express.Router();

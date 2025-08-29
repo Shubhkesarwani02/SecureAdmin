@@ -403,6 +403,31 @@ const accountService = {
     );
     
     return result.rows[0];
+  },
+
+  // Update account
+  update: async (id, updateData) => {
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    for (const key of Object.keys(updateData)) {
+      if (key === 'id') continue;
+      fields.push(`${key} = $${paramCount}`);
+      values.push(updateData[key]);
+      paramCount++;
+    }
+
+    values.push(id);
+
+    const result = await query(
+      `UPDATE accounts SET ${fields.join(', ')}, updated_at = NOW()
+       WHERE id = $${paramCount}
+       RETURNING *`,
+      values
+    );
+
+    return result.rows[0];
   }
 };
 

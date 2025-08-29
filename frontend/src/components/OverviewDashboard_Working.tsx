@@ -5,8 +5,97 @@ import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { Building2, DollarSign, Calendar, Server, AlertCircle, Activity, FileText, Settings, CreditCard } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog"
-import { apiClient } from "../lib/api"
-import { useAuth } from "../contexts/AuthContext"
+
+// API Service
+const apiService = {
+  async getDashboardSummary() {
+    const response = await fetch('/api/dashboard/summary', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.json();
+  },
+
+  async getQuickActions() {
+    const response = await fetch('/api/dashboard/quick-actions', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.json();
+  },
+
+  async getNotifications() {
+    const response = await fetch('/api/notifications', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.json();
+  },
+
+  async getNotificationSettings() {
+    const response = await fetch('/api/user/notification-settings', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.json();
+  },
+
+  async updateNotificationSettings(settings: any) {
+    const response = await fetch('/api/user/notification-settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(settings)
+    });
+    return response.json();
+  },
+
+  async getUserPreferences() {
+    const response = await fetch('/api/user/preferences', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.json();
+  },
+
+  async updateUserPreferences(preferences: any) {
+    const response = await fetch('/api/user/preferences', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ preferences })
+    });
+    return response.json();
+  },
+
+  async generateReport(reportType = 'monthly', format = 'pdf') {
+    const response = await fetch('/api/dashboard/generate-report', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ reportType, format })
+    });
+    return response.json();
+  },
+
+  downloadReport(fileName: string) {
+    const link = document.createElement('a');
+    link.href = `/api/dashboard/download-report/${fileName}`;
+    link.download = fileName;
+    link.click();
+  }
+};
 
 // Simple toast implementation
 const showToast = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
@@ -15,9 +104,6 @@ const showToast = (message: string, type: 'success' | 'info' | 'error' = 'info')
 }
 
 export function OverviewDashboard() {
-  // Get auth context
-  const { user, loading: authLoading } = useAuth();
-
   // State management
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [quickActions, setQuickActions] = useState<any[]>([]);
@@ -42,39 +128,27 @@ export function OverviewDashboard() {
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
-  // Load data only when user is authenticated
+  // Load data on component mount
   useEffect(() => {
-    if (user && !authLoading) {
-      loadDashboardData();
-    }
-  }, [user, authLoading]);
+    loadDashboardData();
+  }, []);
 
   const loadDashboardData = async () => {
     setLoading(true);
     try {
       const [summaryRes, actionsRes, notificationsRes, settingsRes, preferencesRes] = await Promise.all([
-        apiClient.getDashboardSummary(),
-        apiClient.getDashboardQuickActions(),
-        apiClient.getNotifications(),
-        apiClient.getNotificationSettings(),
-        apiClient.getUserPreferences()
+        apiService.getDashboardSummary(),
+        apiService.getQuickActions(),
+        apiService.getNotifications(),
+        apiService.getNotificationSettings(),
+        apiService.getUserPreferences()
       ]);
 
-      if (summaryRes.success && summaryRes.data) {
-        // Ensure the data structure is complete
-        const dashboardData = {
-          ...summaryRes.data,
-          kpis: summaryRes.data.kpis || {},
-          systemHealth: summaryRes.data.systemHealth || {},
-          recentActivity: summaryRes.data.recentActivity || [],
-          accountHealth: summaryRes.data.accountHealth || {}
-        };
-        setDashboardData(dashboardData);
-      }
-      if (actionsRes.success) setQuickActions(actionsRes.data || []);
-      if (notificationsRes.success) setNotifications(notificationsRes.data || []);
-      if (settingsRes.success) setNotificationSettings(settingsRes.data || {});
-      if (preferencesRes.success) setUserPreferences(preferencesRes.data || {});
+      if (summaryRes.success) setDashboardData(summaryRes.data);
+      if (actionsRes.success) setQuickActions(actionsRes.data);
+      if (notificationsRes.success) setNotifications(notificationsRes.data);
+      if (settingsRes.success) setNotificationSettings(settingsRes.data);
+      if (preferencesRes.success) setUserPreferences(preferencesRes.data);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       showToast('Failed to load dashboard data', 'error');
@@ -98,18 +172,14 @@ export function OverviewDashboard() {
     setShowReportDialog(true);
     
     try {
-      const result = await apiClient.generateReport('monthly', 'pdf');
+      const result = await apiService.generateReport('monthly', 'pdf');
       if (result.success) {
         showToast('Monthly report generated successfully!', 'success');
         
         // Auto download the report
         if (result.data.fileName) {
           setTimeout(() => {
-            // For now, just open the download URL
-            const link = document.createElement('a');
-            link.href = `/api/dashboard/download-report/${result.data.fileName}`;
-            link.download = result.data.fileName;
-            link.click();
+            apiService.downloadReport(result.data.fileName);
           }, 1000);
         }
       } else {
@@ -122,24 +192,6 @@ export function OverviewDashboard() {
       setIsGeneratingReport(false);
     }
   };
-
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-2">Initializing...</span>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <AlertCircle className="w-8 h-8 text-red-500" />
-        <span className="ml-2">Authentication required</span>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -190,9 +242,9 @@ export function OverviewDashboard() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.kpis?.totalCompanies || 0}</div>
+            <div className="text-2xl font-bold">{dashboardData.totalClients}</div>
             <p className="text-xs text-muted-foreground">
-              +{dashboardData.kpis?.growth?.companiesGrowth || 0}% from last month
+              +{dashboardData.growth.clients}% from last month
             </p>
           </CardContent>
         </Card>
@@ -203,9 +255,9 @@ export function OverviewDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${dashboardData.kpis?.totalRevenue?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">${dashboardData.totalRevenue?.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              +{dashboardData.kpis?.growth?.revenueGrowth || 0}% from last month
+              +{dashboardData.growth.revenue}% from last month
             </p>
           </CardContent>
         </Card>
@@ -216,9 +268,9 @@ export function OverviewDashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.kpis?.totalVehicles || 0}</div>
+            <div className="text-2xl font-bold">{dashboardData.totalVehicles}</div>
             <p className="text-xs text-muted-foreground">
-              +{dashboardData.kpis?.growth?.vehiclesGrowth || 0}% from last month
+              +{dashboardData.growth.vehicles}% from last month
             </p>
           </CardContent>
         </Card>
@@ -370,7 +422,7 @@ export function OverviewDashboard() {
               </Button>
               <Button onClick={async () => {
                 try {
-                  await apiClient.updateNotificationSettings(notificationSettings);
+                  await apiService.updateNotificationSettings(notificationSettings);
                   showToast('Notification settings updated!', 'success');
                   setShowNotificationDialog(false);
                 } catch (error) {
@@ -459,7 +511,7 @@ export function OverviewDashboard() {
               </Button>
               <Button onClick={async () => {
                 try {
-                  await apiClient.updateUserPreferences(userPreferences);
+                  await apiService.updateUserPreferences(userPreferences);
                   showToast('Preferences updated!', 'success');
                   setShowPreferencesDialog(false);
                 } catch (error) {

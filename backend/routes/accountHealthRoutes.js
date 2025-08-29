@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { verifyToken, requireAdmin, requireCSMOrAbove } = require('../middleware/auth');
 const {
   getAccountHealthOverview,
   getAccountHealthScores,
@@ -9,7 +9,12 @@ const {
   acknowledgeAlert,
   resolveAlert,
   getHighRiskClients,
-  refreshHealthScores
+  refreshHealthScores,
+  // CSM-specific functions
+  getCsmAccountHealthOverview,
+  getCsmAccountHealthScores,
+  getCsmAccountHealthAlerts,
+  getCsmClientHealthDetails
 } = require('../controllers/accountHealthController');
 
 // Apply authentication to all routes
@@ -38,5 +43,11 @@ router.post('/alerts/:alertId/resolve', requireAdmin, resolveAlert);
 
 // Refresh all health scores (manual trigger) (SuperAdmin, Admin only)
 router.post('/refresh-scores', requireAdmin, refreshHealthScores);
+
+// CSM-specific routes - shows only assigned accounts
+router.get('/csm/overview', requireCSMOrAbove, getCsmAccountHealthOverview);
+router.get('/csm/scores', requireCSMOrAbove, getCsmAccountHealthScores);
+router.get('/csm/alerts', requireCSMOrAbove, getCsmAccountHealthAlerts);
+router.get('/csm/client/:clientId', requireCSMOrAbove, getCsmClientHealthDetails);
 
 module.exports = router;

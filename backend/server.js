@@ -35,6 +35,8 @@ const monitoringRoutes = require('./routes/monitoringRoutes');
 const billingRoutes = require('./routes/billingRoutes');
 const snippetsRoutes = require('./routes/snippetsRoutes');
 
+const userPreferencesRoutes = require('./routes/userPreferencesRoutes');
+
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
@@ -125,7 +127,7 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// Health check endpoint
+// Health check endpoints
 app.get('/health', async (req, res) => {
   const dbConnected = await testConnection();
   res.status(200).json({
@@ -134,6 +136,18 @@ app.get('/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     database: dbConnected ? 'connected' : 'disconnected'
+  });
+});
+
+app.get('/api/health', async (req, res) => {
+  const dbConnected = await testConnection();
+  res.status(200).json({
+    success: true,
+    message: 'Framtt Superadmin API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    database: dbConnected ? 'connected' : 'disconnected',
+    version: '1.0.0'
   });
 });
 
@@ -154,6 +168,7 @@ app.use('/api/admin', adminOperationsLimiter);
 
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/user', userPreferencesRoutes);
 app.use('/api/accounts', require('./routes/accountRoutes'));
 app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/audit', require('./routes/auditRoutes'));

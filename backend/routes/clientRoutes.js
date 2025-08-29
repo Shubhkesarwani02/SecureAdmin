@@ -1,31 +1,29 @@
 const express = require('express');
 const { 
   getClients,
-  getClient,
-  addClient,
-  updateClient,
-  deleteClient,
-  exportClientData,
+  createClient,
+  exportClients,
   getClientStats
-} = require('../controllers/clientController');
-const { requireSuperAdmin } = require('../middleware/auth');
+} = require('../controllers/clientController_enhanced');
+const { requireSuperAdmin, requireAuthenticated } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All client routes require superadmin access
-router.use(requireSuperAdmin);
+// All client routes require authentication
+router.use(requireAuthenticated);
 
 // Export endpoint (must be before /:id routes)
-router.get('/export', exportClientData);
+router.get('/export', exportClients);
 router.get('/stats', getClientStats);
 
 router.route('/')
   .get(getClients)
-  .post(addClient);
+  .post(requireSuperAdmin, createClient);
 
-router.route('/:id')
-  .get(getClient)
-  .put(updateClient)
-  .delete(deleteClient);
+// TODO: Implement these routes later
+// router.route('/:id')
+//   .get(getClient)
+//   .put(updateClient)
+//   .delete(deleteClient);
 
 module.exports = router;

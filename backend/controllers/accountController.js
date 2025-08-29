@@ -131,13 +131,7 @@ const getAccount = asyncHandler(async (req, res) => {
 const createAccount = asyncHandler(async (req, res) => {
   const {
     name,
-    companyName,
-    email,
-    phone,
-    address,
-    integrationCode,
-    subscriptionPlan = 'basic',
-    csmId
+    description
   } = req.body;
 
   const currentUserId = req.user.id;
@@ -154,50 +148,22 @@ const createAccount = asyncHandler(async (req, res) => {
   }
 
   // Validate input
-  if (!name || !companyName || !email || !integrationCode) {
+  if (!name) {
     return res.status(400).json({
       success: false,
-      message: 'Name, company name, email, and integration code are required'
-    });
-  }
-
-  // Check if account with this email or integration code already exists
-  const { query } = require('../services/database');
-  const existingAccount = await query(
-    'SELECT id FROM accounts WHERE email = $1 OR integration_code = $2',
-    [email, integrationCode]
-  );
-
-  if (existingAccount.rows.length > 0) {
-    return res.status(400).json({
-      success: false,
-      message: 'Account with this email or integration code already exists'
+      message: 'Account name is required'
     });
   }
 
   try {
-    // Create account
-    const newAccount = await accountService.create({
-      name,
-      companyName,
-      email: email.toLowerCase(),
-      phone,
-      address,
-      integrationCode,
-      subscriptionPlan,
-      createdBy: currentUserId
-    });
+    // Create account using simple structure
+    const { query } = require('../services/database');
+    const result = await query(
+      'INSERT INTO accounts (name) VALUES ($1) RETURNING *',
+      [name]
+    );
 
-    // Assign CSM if provided
-    if (csmId) {
-      await csmAssignmentService.assign({
-        csmId,
-        accountId: newAccount.id,
-        assignedBy: currentUserId,
-        isPrimary: true,
-        notes: `Initial assignment during account creation`
-      });
-    }
+    const newAccount = result.rows[0];
 
     // Log account creation
     await auditService.log({
@@ -207,14 +173,7 @@ const createAccount = asyncHandler(async (req, res) => {
       resourceType: 'ACCOUNT',
       resourceId: newAccount.id,
       oldValues: null,
-      newValues: {
-        name: newAccount.name,
-        companyName: newAccount.company_name,
-        email: newAccount.email,
-        integrationCode: newAccount.integration_code,
-        subscriptionPlan: newAccount.subscription_plan,
-        assignedCSM: csmId
-      },
+      newValues: { name, description },
       ipAddress,
       userAgent
     });
@@ -222,25 +181,14 @@ const createAccount = asyncHandler(async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
-      data: {
-        account: {
-          id: newAccount.id,
-          name: newAccount.name,
-          company_name: newAccount.company_name,
-          email: newAccount.email,
-          phone: newAccount.phone,
-          integration_code: newAccount.integration_code,
-          subscription_plan: newAccount.subscription_plan,
-          status: newAccount.status,
-          created_at: newAccount.created_at
-        }
-      }
+      data: newAccount
     });
+
   } catch (error) {
-    console.error('Error creating account:', error);
+    console.error('Account creation error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error creating account'
+      message: 'Failed to create account'
     });
   }
 });

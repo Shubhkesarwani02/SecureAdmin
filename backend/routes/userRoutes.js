@@ -8,7 +8,8 @@ const {
   assignCSMToAccounts,
   getCSMAssignments,
   updateProfile,
-  getUserStats
+  getUserStats,
+  getCsmDashboard
 } = require('../controllers/userController_enhanced');
 const { 
   verifyToken, 
@@ -34,6 +35,9 @@ router.get('/', requireCSMOrAbove, getUsers);
 
 // User statistics (Admin/Superadmin only) - MUST come before /:id route
 router.get('/stats', requireAdmin, getUserStats);
+
+// CSM dashboard with account health overview - MUST come before /:id route
+router.get('/csm/dashboard', requireCSMOrAbove, getCsmDashboard);
 
 // User creation (Admin/Superadmin only)
 router.post('/', requireAdmin, sensitiveOperationLimit, createUser);

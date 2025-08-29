@@ -6,7 +6,7 @@ const {
   getIntegrationCodes,
   generateIntegrationCode,
   deactivateIntegrationCode
-} = require('../controllers/adminController');
+} = require('../controllers/adminController_enhanced');
 const { requireSuperAdmin } = require('../middleware/auth');
 
 const router = express.Router();

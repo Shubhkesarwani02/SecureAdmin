@@ -4,6 +4,7 @@ import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
+import { useAuth } from '../contexts/AuthContext'
 import { 
   Table, 
   TableBody, 
@@ -93,6 +94,7 @@ interface NewClientFormData {
 }
 
 export default function ClientManagement() {
+  const { userProfile } = useAuth()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<ClientStats | null>(null)
@@ -102,6 +104,12 @@ export default function ClientManagement() {
   const [showViewDialog, setShowViewDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+
+  // Check if user can manage subscriptions (only superadmin)
+  const canManageSubscriptions = userProfile?.role === 'superadmin'
+  
+  // Check if user can add clients (only superadmin)
+  const canAddClients = userProfile?.role === 'superadmin'
 
   // Load clients from API
   const loadClients = async () => {
@@ -312,13 +320,14 @@ export default function ClientManagement() {
                 )}
                 Export
               </Button>
-              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Client
-                  </Button>
-                </DialogTrigger>
+              {canAddClients && (
+                <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Client
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Add New Client</DialogTitle>
@@ -363,6 +372,7 @@ export default function ClientManagement() {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
             </div>
           </div>
         </CardHeader>

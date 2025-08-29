@@ -285,6 +285,49 @@ class ApiClient {
     return this.request('/dashboard/metrics');
   }
 
+  async getDashboardSummary(): Promise<ApiResponse<any>> {
+    return this.request('/dashboard/summary');
+  }
+
+  async getDashboardQuickActions(): Promise<ApiResponse<any>> {
+    return this.request('/dashboard/quick-actions');
+  }
+
+  async generateReport(reportType = 'monthly', format = 'pdf'): Promise<ApiResponse<any>> {
+    return this.request('/dashboard/generate-report', {
+      method: 'POST',
+      body: JSON.stringify({ reportType, format }),
+    });
+  }
+
+  // Notification methods
+  async getNotifications(): Promise<ApiResponse<any>> {
+    return this.request('/notifications');
+  }
+
+  async getNotificationSettings(): Promise<ApiResponse<any>> {
+    return this.request('/user/notification-settings');
+  }
+
+  async updateNotificationSettings(settings: any): Promise<ApiResponse<any>> {
+    return this.request('/user/notification-settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // User Preference methods
+  async getUserPreferences(): Promise<ApiResponse<any>> {
+    return this.request('/user/preferences');
+  }
+
+  async updateUserPreferences(preferences: any): Promise<ApiResponse<any>> {
+    return this.request('/user/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ preferences }),
+    });
+  }
+
   // Account Health methods
   async getAccountHealthOverview(): Promise<ApiResponse<any>> {
     return this.request('/account-health/overview');
@@ -398,12 +441,33 @@ class ApiClient {
     email: string;
     role: string;
     accountId?: string;
-    message?: string;
+    companyName?: string;
+    fullName?: string;
+    phone?: string;
+    expiresIn?: number;
+    sendEmail?: boolean;
   }): Promise<ApiResponse<any>> {
-    return this.request('/invites/send', {
+    return this.request('/invites', {
       method: 'POST',
       body: JSON.stringify(inviteData),
     });
+  }
+
+  async resendInvitation(inviteId: number, expiresIn: number = 48): Promise<ApiResponse<any>> {
+    return this.request(`/invites/${inviteId}/resend`, {
+      method: 'POST',
+      body: JSON.stringify({ expiresIn }),
+    });
+  }
+
+  async cancelInvitation(inviteId: number): Promise<ApiResponse<any>> {
+    return this.request(`/invites/${inviteId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getInviteStats(): Promise<ApiResponse<any>> {
+    return this.request('/invites/stats');
   }
 
   async getAvailableAccounts(): Promise<ApiResponse<any[]>> {

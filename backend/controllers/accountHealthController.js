@@ -512,6 +512,337 @@ const refreshHealthScores = asyncHandler(async (req, res) => {
   });
 });
 
+// CSM-specific Account Health Functions
+
+// GET /api/account-health/csm/overview
+const getCsmAccountHealthOverview = asyncHandler(async (req, res) => {
+  const { csmAssignmentService } = require('../services/database');
+  const csmId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  // Check if user is CSM
+  if (currentUserRole !== 'csm') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. This endpoint is only available for CSMs.'
+    });
+  }
+
+  try {
+    // Get accounts assigned to this CSM
+    const csmAssignments = await csmAssignmentService.getByCSM(csmId);
+    const assignedAccountIds = csmAssignments.map(assignment => assignment.account_id);
+
+    if (assignedAccountIds.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          totalAssignedClients: 0,
+          healthyClients: 0,
+          atRiskClients: 0,
+          criticalClients: 0,
+          averageHealthScore: 0,
+          totalActiveAlerts: 0,
+          criticalAlerts: 0,
+          churnRiskClients: 0,
+          lastUpdated: new Date().toISOString(),
+          assignedAccounts: []
+        }
+      });
+    }
+
+    // Filter health scores for assigned accounts only
+    // In a real implementation, this would query the database with account IDs
+    const assignedHealthScores = mockAccountHealthData.healthScores.filter(score => 
+      assignedAccountIds.includes(score.clientId)
+    );
+
+    const assignedAlerts = mockAccountHealthData.alerts.filter(alert => 
+      assignedAccountIds.includes(alert.clientId) && alert.status === 'active'
+    );
+
+    const overview = {
+      totalAssignedClients: assignedHealthScores.length,
+      healthyClients: assignedHealthScores.filter(score => score.riskLevel === 'low').length,
+      atRiskClients: assignedHealthScores.filter(score => score.riskLevel === 'medium').length,
+      criticalClients: assignedHealthScores.filter(score => score.riskLevel === 'critical').length,
+      averageHealthScore: assignedHealthScores.length > 0 ? Math.round(
+        assignedHealthScores.reduce((sum, score) => sum + score.overallScore, 0) / 
+        assignedHealthScores.length
+      ) : 0,
+      totalActiveAlerts: assignedAlerts.length,
+      criticalAlerts: assignedAlerts.filter(alert => alert.severity === 'critical').length,
+      churnRiskClients: assignedHealthScores.filter(score => score.churnProbability > 30).length,
+      lastUpdated: new Date().toISOString(),
+      assignedAccounts: csmAssignments.map(assignment => ({
+        accountId: assignment.account_id,
+        accountName: assignment.account_name,
+        companyName: assignment.company_name,
+        isPrimary: assignment.is_primary,
+        assignedAt: assignment.assigned_at
+      }))
+    };
+
+    res.json({
+      success: true,
+      data: overview
+    });
+  } catch (error) {
+    console.error('Error fetching CSM account health overview:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch CSM account health overview',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/account-health/csm/scores
+const getCsmAccountHealthScores = asyncHandler(async (req, res) => {
+  const { csmAssignmentService } = require('../services/database');
+  const csmId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  // Check if user is CSM
+  if (currentUserRole !== 'csm') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. This endpoint is only available for CSMs.'
+    });
+  }
+
+  try {
+    const { riskLevel, sortBy = 'overallScore', sortOrder = 'desc' } = req.query;
+
+    // Get accounts assigned to this CSM
+    const csmAssignments = await csmAssignmentService.getByCSM(csmId);
+    const assignedAccountIds = csmAssignments.map(assignment => assignment.account_id);
+
+    if (assignedAccountIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        total: 0,
+        message: 'No accounts assigned to this CSM'
+      });
+    }
+
+    // Filter health scores for assigned accounts only
+    let filteredScores = mockAccountHealthData.healthScores.filter(score => 
+      assignedAccountIds.includes(score.clientId)
+    );
+    
+    // Filter by risk level if specified
+    if (riskLevel) {
+      filteredScores = filteredScores.filter(score => score.riskLevel === riskLevel);
+    }
+    
+    // Sort results
+    filteredScores.sort((a, b) => {
+      const aVal = a[sortBy] || 0;
+      const bVal = b[sortBy] || 0;
+      
+      if (sortOrder === 'desc') {
+        return bVal - aVal;
+      }
+      return aVal - bVal;
+    });
+
+    // Add assignment information to each score
+    const enrichedScores = filteredScores.map(score => {
+      const assignment = csmAssignments.find(a => a.account_id === score.clientId);
+      return {
+        ...score,
+        assignmentInfo: assignment ? {
+          isPrimary: assignment.is_primary,
+          assignedAt: assignment.assigned_at,
+          notes: assignment.notes
+        } : null
+      };
+    });
+
+    res.json({
+      success: true,
+      data: enrichedScores,
+      total: enrichedScores.length
+    });
+  } catch (error) {
+    console.error('Error fetching CSM account health scores:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch CSM account health scores',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/account-health/csm/alerts
+const getCsmAccountHealthAlerts = asyncHandler(async (req, res) => {
+  const { csmAssignmentService } = require('../services/database');
+  const csmId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  // Check if user is CSM
+  if (currentUserRole !== 'csm') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. This endpoint is only available for CSMs.'
+    });
+  }
+
+  try {
+    const { status = 'active', severity, alertType } = req.query;
+
+    // Get accounts assigned to this CSM
+    const csmAssignments = await csmAssignmentService.getByCSM(csmId);
+    const assignedAccountIds = csmAssignments.map(assignment => assignment.account_id);
+
+    if (assignedAccountIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        total: 0,
+        message: 'No accounts assigned to this CSM'
+      });
+    }
+
+    // Filter alerts for assigned accounts only
+    let filteredAlerts = mockAccountHealthData.alerts.filter(alert => 
+      assignedAccountIds.includes(alert.clientId)
+    );
+    
+    // Apply filters
+    if (status) {
+      filteredAlerts = filteredAlerts.filter(alert => alert.status === status);
+    }
+    if (severity) {
+      filteredAlerts = filteredAlerts.filter(alert => alert.severity === severity);
+    }
+    if (alertType) {
+      filteredAlerts = filteredAlerts.filter(alert => alert.alertType === alertType);
+    }
+
+    // Sort by priority (critical first) and then by date
+    filteredAlerts.sort((a, b) => {
+      const severityOrder = { 'critical': 3, 'high': 2, 'medium': 1, 'low': 0 };
+      const aSeverity = severityOrder[a.severity] || 0;
+      const bSeverity = severityOrder[b.severity] || 0;
+      
+      if (aSeverity !== bSeverity) {
+        return bSeverity - aSeverity; // Higher severity first
+      }
+      
+      return new Date(b.createdAt) - new Date(a.createdAt); // Newer alerts first
+    });
+
+    // Add account information to each alert
+    const enrichedAlerts = filteredAlerts.map(alert => {
+      const assignment = csmAssignments.find(a => a.account_id === alert.clientId);
+      return {
+        ...alert,
+        accountInfo: assignment ? {
+          accountName: assignment.account_name,
+          companyName: assignment.company_name,
+          isPrimary: assignment.is_primary
+        } : null
+      };
+    });
+
+    res.json({
+      success: true,
+      data: enrichedAlerts,
+      total: enrichedAlerts.length
+    });
+  } catch (error) {
+    console.error('Error fetching CSM account health alerts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch CSM account health alerts',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/account-health/csm/client/:clientId
+const getCsmClientHealthDetails = asyncHandler(async (req, res) => {
+  const { csmAssignmentService } = require('../services/database');
+  const csmId = req.user.id;
+  const currentUserRole = req.user.role;
+  const { clientId } = req.params;
+
+  // Check if user is CSM
+  if (currentUserRole !== 'csm') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. This endpoint is only available for CSMs.'
+    });
+  }
+
+  try {
+    // Get accounts assigned to this CSM
+    const csmAssignments = await csmAssignmentService.getByCSM(csmId);
+    const assignedAccountIds = csmAssignments.map(assignment => assignment.account_id);
+
+    // Check if the requested client is assigned to this CSM
+    if (!assignedAccountIds.includes(parseInt(clientId))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. This client is not assigned to you.'
+      });
+    }
+
+    // Find the client health data
+    const clientHealth = mockAccountHealthData.healthScores.find(score => 
+      score.clientId === parseInt(clientId)
+    );
+
+    if (!clientHealth) {
+      return res.status(404).json({
+        success: false,
+        message: 'Client health data not found'
+      });
+    }
+
+    // Get client alerts
+    const clientAlerts = mockAccountHealthData.alerts.filter(alert => 
+      alert.clientId === parseInt(clientId)
+    );
+
+    // Get client metrics
+    const clientMetrics = mockAccountHealthData.detailedMetrics.find(metrics => 
+      metrics.clientId === parseInt(clientId)
+    );
+
+    // Get assignment information
+    const assignment = csmAssignments.find(a => a.account_id === parseInt(clientId));
+
+    const response = {
+      healthScore: clientHealth,
+      alerts: clientAlerts,
+      detailedMetrics: clientMetrics,
+      assignmentInfo: assignment ? {
+        isPrimary: assignment.is_primary,
+        assignedAt: assignment.assigned_at,
+        notes: assignment.notes,
+        accountName: assignment.account_name,
+        companyName: assignment.company_name
+      } : null
+    };
+
+    res.json({
+      success: true,
+      data: response
+    });
+  } catch (error) {
+    console.error('Error fetching CSM client health details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch client health details',
+      error: error.message
+    });
+  }
+});
+
 module.exports = {
   getAccountHealthOverview,
   getAccountHealthScores,
@@ -520,5 +851,10 @@ module.exports = {
   acknowledgeAlert,
   resolveAlert,
   getHighRiskClients,
-  refreshHealthScores
+  refreshHealthScores,
+  // CSM-specific functions
+  getCsmAccountHealthOverview,
+  getCsmAccountHealthScores,
+  getCsmAccountHealthAlerts,
+  getCsmClientHealthDetails
 };

@@ -153,30 +153,67 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
   const getFilteredMenuItems = () => {
     if (!userProfile) return menuItems
     
-    // Filter menu items based on user role
+    // Filter menu items based on user role according to the access matrix
     return menuItems.filter(item => {
       switch (item.key) {
+        case 'overview':
+          // All roles can see overview
+          return true
+          
+        case 'clients':
+          // Superadmin: Only superadmin can manage client accounts and subscriptions
+          // Admin: No access
+          // CSM: No access  
+          return userProfile.role === 'superadmin'
+          
         case 'users':
-          // Only admins and superadmins can see user management
-          return ['admin', 'superadmin'].includes(userProfile.role)
+          // Superadmin: Can see and manage end user and admins both
+          // Admin: Can see and manage all assigned csms, can impersonate csm
+          // CSM: Can see all assigned accounts, but cant impersonate
+          return ['superadmin', 'admin', 'csm'].includes(userProfile.role)
+          
         case 'invites':
-          // Only admins and superadmins can see invite management
-          return ['admin', 'superadmin'].includes(userProfile.role)
-        case 'impersonation':
-          // Only admins and superadmins can see impersonation history
-          return ['admin', 'superadmin'].includes(userProfile.role)
-        case 'settings':
-          // Admins and superadmins can see admin settings
-          return ['admin', 'superadmin'].includes(userProfile.role)
-        case 'monitoring':
-          // Only admins and superadmins can see system monitoring
-          return ['admin', 'superadmin'].includes(userProfile.role)
+          // Superadmin: Can invite admins as well as csms
+          // Admin: Can invite csms
+          // CSM: No invitation window
+          return ['superadmin', 'admin'].includes(userProfile.role)
+          
         case 'account-health':
-          // Visible to admins and superadmins
-          return ['admin', 'superadmin'].includes(userProfile.role)
+          // Superadmin: All clients
+          // Admin: All assigned clients
+          // CSM: No access
+          return ['superadmin', 'admin'].includes(userProfile.role)
+          
+        case 'monitoring':
+          // Superadmin: All clients
+          // Admin: All assigned clients
+          // CSM: No access
+          return ['superadmin', 'admin'].includes(userProfile.role)
+          
         case 'payments':
-          // Only admins and superadmins can see payments
-          return ['admin', 'superadmin'].includes(userProfile.role)
+          // Superadmin: Only SA can manage subscriptions and payments
+          // Admin: No access
+          // CSM: No access
+          return userProfile.role === 'superadmin'
+          
+        case 'snippets':
+          // Superadmin: All clients
+          // Admin: All assigned clients
+          // CSM: All accounts under them
+          return ['superadmin', 'admin', 'csm'].includes(userProfile.role)
+          
+        case 'impersonation':
+          // Superadmin: All impersonations, full control
+          // Admin: Can see only his impersonation, not even other admins
+          // CSM: No access
+          return ['superadmin', 'admin'].includes(userProfile.role)
+          
+        case 'settings':
+          // Superadmin: Only SA can see this settings of admins and actions
+          // Admin: No access
+          // CSM: No access
+          return userProfile.role === 'superadmin'
+          
         default:
           return true
       }
