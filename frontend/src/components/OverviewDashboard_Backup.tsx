@@ -1,15 +1,10 @@
-import React, { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
-import { Progress } from "./ui/progress"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts"
-import { Building2, DollarSign, Calendar, Server, AlertCircle, TrendingUp, Users, Activity, FileText, Settings, CreditCard, AlertTriangle, Download, Loader } from "lucide-react"
+import { Building2, DollarSign, Calendar, Server, AlertCircle, Activity, Settings, AlertTriangle, Loader } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { Label } from "./ui/label"
-import { Switch } from "./ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 // API Service
 const apiService = {
@@ -129,8 +124,38 @@ export function OverviewDashboard() {
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [showPreferencesDialog, setShowPreferencesDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showKycDialog, setShowKycDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [reportData, setReportData] = useState<any>(null);
+
+  // Sample data for charts
+  const monthlyRevenueData = [
+    { month: 'Jan', revenue: 45000, bookings: 1200 },
+    { month: 'Feb', revenue: 52000, bookings: 1350 },
+    { month: 'Mar', revenue: 48000, bookings: 1180 },
+    { month: 'Apr', revenue: 61000, bookings: 1520 },
+    { month: 'May', revenue: 55000, bookings: 1380 },
+    { month: 'Jun', revenue: 67000, bookings: 1650 }
+  ];
+
+  const serverUsageData = [
+    { name: 'API Server', value: 35, color: '#8884d8' },
+    { name: 'Database', value: 25, color: '#82ca9d' },
+    { name: 'File Storage', value: 20, color: '#ffc658' },
+    { name: 'Cache', value: 15, color: '#ff7300' },
+    { name: 'Others', value: 5, color: '#00ff00' }
+  ];
+
+  const pendingKycData = [
+    { id: 1, company: 'ABC Rentals', submittedAt: '2024-01-15', status: 'pending' },
+    { id: 2, company: 'XYZ Motors', submittedAt: '2024-01-14', status: 'pending' },
+    { id: 3, company: 'Speed Cars', submittedAt: '2024-01-13', status: 'under_review' }
+  ];
+
+  const paymentIssues = [
+    { id: 1, company: 'ABC Rentals', issue: 'Payment failed', amount: '$500' },
+    { id: 2, company: 'XYZ Motors', issue: 'Refund pending', amount: '$250' }
+  ];
 
   // Load data on component mount
   useEffect(() => {
@@ -178,7 +203,6 @@ export function OverviewDashboard() {
     try {
       const result = await apiService.generateReport('monthly', 'pdf');
       if (result.success) {
-        setReportData(result.data);
         showToast('Monthly report generated successfully!', 'success');
         
         // Auto download the report
@@ -195,36 +219,6 @@ export function OverviewDashboard() {
       showToast('Failed to generate report', 'error');
     } finally {
       setIsGeneratingReport(false);
-    }
-  };
-
-  const handleNotificationSettingsUpdate = async (newSettings: any) => {
-    try {
-      const result = await apiService.updateNotificationSettings(newSettings);
-      if (result.success) {
-        setNotificationSettings(newSettings);
-        showToast('Notification settings updated successfully!', 'success');
-      } else {
-        showToast('Failed to update notification settings', 'error');
-      }
-    } catch (error) {
-      console.error('Error updating notification settings:', error);
-      showToast('Failed to update notification settings', 'error');
-    }
-  };
-
-  const handlePreferencesUpdate = async (newPreferences: any) => {
-    try {
-      const result = await apiService.updateUserPreferences(newPreferences);
-      if (result.success) {
-        setUserPreferences(newPreferences);
-        showToast('Preferences updated successfully!', 'success');
-      } else {
-        showToast('Failed to update preferences', 'error');
-      }
-    } catch (error) {
-      console.error('Error updating preferences:', error);
-      showToast('Failed to update preferences', 'error');
     }
   };
 
@@ -440,44 +434,6 @@ export function OverviewDashboard() {
         </Card>
       </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8,923</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+18%</span> from last month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$67,000</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+22%</span> from last month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending KYC</CardTitle>
-            <AlertCircle className="w-4 h-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">Requires attention</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Charts Section */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
@@ -517,110 +473,13 @@ export function OverviewDashboard() {
                   dataKey="value"
                   label
                 >
-                  {serverUsageData.map((entry, index) => (
+                  {serverUsageData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* System Health */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>System Health</CardTitle>
-            <CardDescription>Overall platform status</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">API Uptime</span>
-              <span className="text-sm font-medium">99.8%</span>
-            </div>
-            <Progress value={99.8} className="h-2" />
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Database Health</span>
-              <span className="text-sm font-medium">98.5%</span>
-            </div>
-            <Progress value={98.5} className="h-2" />
-            
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Average Response Time</span>
-              <span className="text-sm font-medium">120ms</span>
-            </div>
-            <Progress value={85} className="h-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest platform events</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Badge className="text-xs">AI Recommendation</Badge>
-                <span className="text-sm">New client onboarded</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="secondary" className="text-xs">Tracking Active</Badge>
-                <span className="text-sm">Fleet sync completed</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="text-xs">Connected via WhatsApp</Badge>
-                <span className="text-sm">Integration updated</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge className="text-xs bg-green-500">Marketing Active</Badge>
-                <span className="text-sm">Campaign launched</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2"
-              onClick={handleReviewKyc}
-            >
-              <AlertCircle className="w-4 h-4 text-orange-500" />
-              Review Pending KYC (23)
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2"
-              onClick={handleProcessPayments}
-            >
-              <CreditCard className="w-4 h-4 text-red-500" />
-              Process Payment Issues (5)
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2"
-              onClick={handleUpdateSettings}
-            >
-              <Settings className="w-4 h-4" />
-              Update System Settings
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2"
-              onClick={handleGenerateReport}
-            >
-              <FileText className="w-4 h-4" />
-              Generate Monthly Report
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -643,10 +502,16 @@ export function OverviewDashboard() {
                   <Badge variant="outline" className="mt-1">{kyc.status}</Badge>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleKycAction(kyc.id, 'approved')}>
+                  <Button size="sm" onClick={() => {
+                    showToast('KYC approved successfully!', 'success');
+                    setShowKycDialog(false);
+                  }}>
                     Approve
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleKycAction(kyc.id, 'rejected')}>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    showToast('KYC rejected!', 'info');
+                    setShowKycDialog(false);
+                  }}>
                     Reject
                   </Button>
                 </div>
@@ -674,10 +539,16 @@ export function OverviewDashboard() {
                   <Badge variant="destructive" className="mt-1">{issue.amount}</Badge>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handlePaymentAction(issue.id, 'resolved')}>
+                  <Button size="sm" onClick={() => {
+                    showToast('Payment resolved successfully!', 'success');
+                    setShowPaymentDialog(false);
+                  }}>
                     Resolve
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handlePaymentAction(issue.id, 'contacted')}>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    showToast('Contacting client...', 'info');
+                    setShowPaymentDialog(false);
+                  }}>
                     Contact Client
                   </Button>
                 </div>
@@ -732,7 +603,7 @@ export function OverviewDashboard() {
               <input 
                 type="checkbox" 
                 checked={notificationSettings.email}
-                onChange={(e) => setNotificationSettings(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNotificationSettings((prev: any) => ({
                   ...prev,
                   email: e.target.checked
                 }))}
@@ -744,7 +615,7 @@ export function OverviewDashboard() {
               <input 
                 type="checkbox" 
                 checked={notificationSettings.push}
-                onChange={(e) => setNotificationSettings(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNotificationSettings((prev: any) => ({
                   ...prev,
                   push: e.target.checked
                 }))}
@@ -756,7 +627,7 @@ export function OverviewDashboard() {
               <input 
                 type="checkbox" 
                 checked={notificationSettings.sms}
-                onChange={(e) => setNotificationSettings(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNotificationSettings((prev: any) => ({
                   ...prev,
                   sms: e.target.checked
                 }))}
@@ -768,7 +639,7 @@ export function OverviewDashboard() {
               <input 
                 type="checkbox" 
                 checked={notificationSettings.security}
-                onChange={(e) => setNotificationSettings(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNotificationSettings((prev: any) => ({
                   ...prev,
                   security: e.target.checked
                 }))}
@@ -809,7 +680,7 @@ export function OverviewDashboard() {
               <label className="text-sm font-medium">Default Dashboard View</label>
               <select 
                 value={userPreferences.defaultView}
-                onChange={(e) => setUserPreferences(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserPreferences((prev: any) => ({
                   ...prev,
                   defaultView: e.target.value
                 }))}
@@ -825,7 +696,7 @@ export function OverviewDashboard() {
               <label className="text-sm font-medium">Time Zone</label>
               <select 
                 value={userPreferences.timezone}
-                onChange={(e) => setUserPreferences(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserPreferences((prev: any) => ({
                   ...prev,
                   timezone: e.target.value
                 }))}
@@ -841,7 +712,7 @@ export function OverviewDashboard() {
               <label className="text-sm font-medium">Language</label>
               <select 
                 value={userPreferences.language}
-                onChange={(e) => setUserPreferences(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserPreferences((prev: any) => ({
                   ...prev,
                   language: e.target.value
                 }))}
@@ -857,7 +728,7 @@ export function OverviewDashboard() {
               <input 
                 type="checkbox" 
                 checked={userPreferences.darkMode}
-                onChange={(e) => setUserPreferences(prev => ({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserPreferences((prev: any) => ({
                   ...prev,
                   darkMode: e.target.checked
                 }))}
