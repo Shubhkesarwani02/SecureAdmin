@@ -74,6 +74,196 @@ superadmin-framtt/
 └── 📄 package.json                 # Root workspace configuration
 ```
 
+# 🚀 Framtt Superadmin Dashboard — Full Documentation
+
+A comprehensive superadmin dashboard for managing rental companies on the Framtt platform. Built with React 18, TypeScript, Tailwind CSS, and Express.js with enterprise-grade security and role-based access control.
+
+---
+
+## 🏗️ High-Level Architecture
+
+- **Frontend (React + Vite + TypeScript):** SPA authenticates via JWT, stores access token in localStorage, and calls backend REST APIs under `/api`. Impersonation swaps the active JWT in the client to assume the target user.
+- **Backend (Node.js + Express + PostgreSQL):** REST APIs, JWT authentication/authorization, role hierarchy, impersonation, data-access scoping, service layer for DB queries.
+- **Database (PostgreSQL):** Relational schema for users, roles, accounts, assignments, impersonation logs, audit logs, metrics. SQL files under `database/` define tables, functions, triggers.
+- **Supabase:** Used for provisioning/setup scripts and optional client utilities. Backend can run setup scripts against a Supabase-hosted Postgres using the service role key. Frontend has a basic Supabase client scaffold for optional use cases.
+
+---
+
+## 🧩 Technology Stack
+
+### Frontend
+- React 18.3.1, TypeScript 5.6.2, Vite 5.4.9
+- Tailwind CSS 3.4.14, Radix UI, shadcn/ui, Figma-based custom components
+- Recharts (analytics), Lucide React (icons), React Router DOM 6.28.0
+- React Context API, date-fns, react-day-picker, CMDK, Embla Carousel, Sonner, Vaul
+
+### Backend
+- Node.js, Express 4.18.2, PostgreSQL (pg 8.16.3)
+- JWT (jsonwebtoken 9.0.2), bcrypt, Helmet, express-rate-limit, CORS, Joi, Morgan
+- Supabase JS, Axios, Nodemon, Jest
+
+---
+
+## 🖥️ Frontend Structure & Flow
+
+### Main Components
+- `OverviewDashboard.tsx`: KPIs, analytics, charts
+- `ClientManagement.tsx`: Client/tenant management
+- `SystemMonitoring.tsx`: System health, monitoring
+- `PaymentsBilling.tsx`: Revenue, payments
+- `SnippetManager.tsx`: API integration code
+- `AdminSettings.tsx`: User/system admin
+- `UserManagement.tsx`: Role assignments, user CRUD
+- `AccountHealth.tsx`: Health monitoring, alerts
+- `LoginPage.tsx`: Secure login, JWT handling
+- `ImpersonationBanner/Dialog/History`: Impersonation UI
+- `ProtectedRoute.tsx`: Route guards
+- `BreadcrumbNavigation.tsx`: Navigation
+
+### UI Library
+- 40+ reusable components (buttons, forms, cards, tables, charts, navigation, feedback, overlays, etc.)
+
+### Routing
+- Clean URLs for all dashboard sections
+- Dynamic page titles, breadcrumb navigation, 404 handling
+
+### Flow
+1. User visits app → Login page
+2. Login → JWT stored in localStorage
+3. Authenticated → Access dashboard, management, monitoring, etc.
+4. Role-based UI: Only see features allowed by your role (SuperAdmin, Admin, CSM, User)
+5. Impersonation: SuperAdmin/Admin can impersonate others, UI shows banner, all actions are logged
+6. API Calls: All data fetched via backend REST API (`/api`), JWT sent in headers
+
+---
+
+## 🗄️ Backend Structure & Flow
+
+### Core Features
+- **Authentication & Security**: JWT auth, RBAC, session management, token rotation, impersonation system (with audit logs), rate limiting, DDoS protection, input validation
+- **User & Role Management**: Multi-tier roles (SuperAdmin → Admin → CSM → User), user CRUD, role/account assignment, audit logging
+- **Client & Vehicle Management**: CRUD for clients, vehicle fleet management, real-time tracking, booking/assignment, integration code management
+- **Analytics & Monitoring**: Dashboard KPIs, system health, performance analytics, notification system
+
+### Controllers & Services
+- Modular controllers for auth, users, accounts, health, admin, assignments, audit, clients, dashboard, notifications, roles, vehicles
+- Service layer for DB access: userService, accountService, csmAssignmentService, userAccountService, impersonationService, tokenService, auditService
+
+### Security & Middleware
+- Security headers, JWT secret rotation, CSRF protection, granular rate limiting, impersonation-aware authentication, centralized error handling
+
+### Flow
+1. API receives request → Validates JWT, checks role/permissions
+2. Routes → Controllers → Services → Database
+3. Role-based access: Only allowed actions/data for your role
+4. Impersonation: If active, actions are logged as impersonated user, with original user tracked
+5. Audit logs: All sensitive actions are logged for traceability
+
+---
+
+## 🗃️ Database & Supabase
+
+### PostgreSQL Schema
+- Users, Roles, Accounts, Assignments, Impersonation logs, Audit logs, Metrics
+- Clients, Vehicles, Bookings, Notifications
+- Functions, triggers, and views for business logic
+
+### Supabase Integration
+- Database Hosting: Can use Supabase-hosted Postgres
+- Setup Scripts: SQL files in `/database` can be run via Supabase SQL editor or CLI
+- Service Role Key: Backend can use Supabase service key for provisioning/setup
+- Optional Client: Frontend has a basic Supabase client scaffold for direct queries if needed
+
+---
+
+## 🔄 Application Flow (End-to-End)
+
+### User Journey
+1. User accesses frontend → Shown login page
+2. Login (username/password) → Backend validates, returns JWT
+3. JWT stored in browser, used for all API requests
+4. Role-based dashboard: UI and API enforce permissions
+5. SuperAdmin/Admin can impersonate other users (UI banner, audit logs)
+6. All actions (CRUD, assignments, impersonation) go through backend, which logs and enforces security
+7. Database: All data stored in PostgreSQL, with triggers and logs for traceability
+8. Supabase: Used for database hosting, provisioning, and optional direct queries
+
+---
+
+## 🛡️ Security & Best Practices
+
+- JWT rotation, session management
+- Role-based access control everywhere
+- All impersonation actions are logged
+- Rate limiting, input validation, security headers
+- Audit logs for sensitive actions
+
+---
+
+## 🧪 Development & Setup
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev      # Start dev server
+npm run build    # Build for production
+npm run preview  # Preview production build
+```
+
+### Backend
+```bash
+cd backend
+npm install
+npm run dev      # Start backend server (nodemon)
+```
+
+### Database
+- Run SQL scripts in `/database` (in order) on your PostgreSQL/Supabase instance
+
+---
+
+## ⚙️ Automation, Scripts & Deployment
+
+- Dev environment scripts: `dev-windows.bat`, `start.sh`, `start.bat`, `deploy.sh`, `deploy.bat`
+- Maintenance: user credential management, password reset, test data setup, DB maintenance, health checks
+- Backend setup: role hierarchy, assignment tables, system verification
+- Deployment: Render.com, Vercel, Netlify, Docker, Nginx
+
+---
+
+## 🌐 Environment Variables
+
+### Frontend (Vite-based)
+- `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_ENVIRONMENT`, `VITE_DEMO_MODE`
+
+### Backend
+- `DATABASE_URL`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL`
+- `JWT_SECRET`, `JWT_EXPIRE`, `REFRESH_TOKEN_SECRET`, `IMPERSONATION_TIMEOUT_HOURS`
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOWED_ORIGINS`, `RATE_LIMIT_WINDOW`, `RATE_LIMIT_MAX`, `PORT`, `NODE_ENV`
+
+---
+
+## 🔍 Where to Look in the Code
+
+- Server bootstrap: `backend/server.js`
+- Routes: `backend/routes/*.js`
+- Controllers: `backend/controllers/*.js`
+- Auth & JWT: `backend/controllers/authController.js`, `backend/middleware/auth.js`, `backend/middleware/security.js`
+- Services/DB: `backend/services/database.js`
+- Frontend auth: `frontend/src/contexts/AuthContext.tsx`, `frontend/src/lib/api.ts`
+- Supabase client (frontend): `frontend/src/utils/supabase/client.ts`
+- Database DDL: `database/*.sql`
+
+---
+
+## 📚 For More Details
+
+- See `docs/PROJECT_OVERVIEW.md` for a full technical deep-dive, workflows, and code references.
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
