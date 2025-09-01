@@ -22,6 +22,8 @@ export default defineConfig({
         },
     },
     build: {
+        target: 'esnext',
+        minify: 'esbuild',
         rollupOptions: {
             output: {
                 manualChunks: {
@@ -32,5 +34,8 @@ export default defineConfig({
                 },
             },
         },
+    },
+    optimizeDeps: {
+        include: ['react', 'react-dom', 'react-router-dom'],
     },
 });
