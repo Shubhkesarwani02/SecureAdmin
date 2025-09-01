@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' tsc -b && vite build --mode production",
-    "build:legacy": "tsc -b && NODE_OPTIONS='--no-deprecation' vite build --mode production --config vite.config.legacy.js",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 tsc -b && vite build --mode production",
+    "build:legacy": "tsc -b && cross-env NODE_OPTIONS=--no-deprecation vite build --mode production --config vite.config.legacy.js",
+    "build:windows": "tsc -b && vite build --mode production --config vite.config.legacy.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -66,6 +67,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.0.0",
     "eslint": "^9.13.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
@@ -73,6 +75,7 @@
     "postcss": "^8.4.49",
     "rollup": "^4.9.6",
     "tailwindcss": "^3.4.14",
+    "terser": "^5.43.1",
     "typescript": "~5.6.2",
     "typescript-eslint": "^8.10.0",
     "vite": "^5.4.9"
