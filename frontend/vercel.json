@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npm run build:legacy",
+  "buildCommand": "npm run build:vercel-simple",
   "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps",
+  "installCommand": "npm install --legacy-peer-deps --force",
   "framework": "vite",
   "rewrites": [
     {
@@ -18,5 +18,11 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "app/api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"]
 }

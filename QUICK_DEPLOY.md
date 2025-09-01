@@ -158,10 +158,12 @@ node -e "console.log('JWT_SECRET=' + require('crypto').randomBytes(64).toString(
    ```
    Framework Preset: Vite
    Root Directory: frontend
-   Build Command: npm run build:legacy
+   Build Command: npm run build:vercel-simple
    Output Directory: dist
-   Install Command: npm install --legacy-peer-deps
+   Install Command: npm install --legacy-peer-deps --force
    ```
+   
+   **Note**: If build fails with rollup error, try `npm run build:vercel` instead.
 
 4. **Environment Variables** (Replace `YOUR_BACKEND_URL` with your actual Render URL):
    ```env
@@ -279,7 +281,24 @@ After successful deployment, you'll have:
    npm install --save-dev terser
    ```
 
-3. **Environment Variables Not Working**
+3. **Rollup/Platform Binary Errors (Vercel)**
+   ```bash
+   # Error: Cannot find module @rollup/rollup-linux-x64-gnu
+   
+   # Solutions (try in order):
+   # 1. Use the simple build command in Vercel
+   Build Command: npm run build:vercel-simple
+   
+   # 2. Use the workaround build command  
+   Build Command: npm run build:vercel
+   
+   # 3. Force reinstall dependencies
+   Install Command: rm -rf node_modules package-lock.json && npm install --legacy-peer-deps --force
+   
+   # 4. Check VERCEL_ROLLUP_FIX.md for detailed solutions
+   ```
+
+4. **Environment Variables Not Working**
    - Ensure Vite variables start with `VITE_`
    - Redeploy after adding environment variables
 
