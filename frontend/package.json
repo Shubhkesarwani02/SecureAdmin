@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build --mode production",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096' tsc -b && vite build --mode production",
+    "build:legacy": "tsc -b && NODE_OPTIONS='--no-deprecation' vite build --mode production --config vite.config.legacy.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
