@@ -14,11 +14,13 @@ const pool = new Pool(
     } : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000, // Increased timeout
+    connectionTimeoutMillis: 15000, // Increased timeout for Supabase
+    statement_timeout: 30000,
+    query_timeout: 30000,
   } :
   {
     host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
+    port: parseInt(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME || 'framtt_superadmin',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'password',
@@ -28,20 +30,47 @@ const pool = new Pool(
     } : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000, // Increased timeout
+    connectionTimeoutMillis: 15000, // Increased timeout for Supabase
+    statement_timeout: 30000,
+    query_timeout: 30000,
   }
 );
 
 // Test database connection
 const testConnection = async () => {
   try {
+    console.log('🔄 Testing database connection...');
+    console.log('Database config:', {
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      ssl: process.env.DB_SSL,
+      hasConnectionString: !!process.env.DATABASE_URL
+    });
+    
     const client = await pool.connect();
-    await client.query('SELECT NOW()');
+    const result = await client.query('SELECT NOW()');
     client.release();
-    console.log('✅ Database connected successfully');
+    console.log('✅ Database connected successfully at:', result.rows[0].now);
     return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('❌ Database connection failed:');
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error details:', error.detail);
+    
+    // Additional debugging for connection issues
+    if (error.code === 'ENOTFOUND') {
+      console.error('🔍 DNS resolution failed. Check DB_HOST value.');
+    } else if (error.code === 'ECONNREFUSED') {
+      console.error('🔍 Connection refused. Check if database server is running and accessible.');
+    } else if (error.code === '28P01') {
+      console.error('🔍 Authentication failed. Check username/password.');
+    } else if (error.code === '3D000') {
+      console.error('🔍 Database does not exist. Check DB_NAME value.');
+    }
+    
     return false;
   }
 };
