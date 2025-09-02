@@ -10,7 +10,6 @@
     "build:vercel": "npm install @rollup/rollup-linux-x64-gnu --no-save && tsc -b && cross-env NODE_OPTIONS=--no-deprecation vite build --mode production --config vite.config.legacy.js",
     "build:vercel-simple": "tsc -b && vite build --mode production --config vite.config.vercel.js",
     "build:windows": "tsc -b && vite build --mode production --config vite.config.legacy.js",
-    "postinstall": "npm list @rollup/rollup-linux-x64-gnu || npm install @rollup/rollup-linux-x64-gnu --no-save",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -65,7 +64,6 @@
   "devDependencies": {
     "@eslint/js": "^9.13.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
-    "@rollup/rollup-linux-x64-gnu": "^4.9.6",
     "@types/node": "^22.8.4",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
