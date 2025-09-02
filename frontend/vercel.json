@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npm run build:vercel-simple",
+  "buildCommand": "npm install @rollup/rollup-linux-x64-gnu --no-save && npm run build:vercel-simple",
   "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps --force",
+  "installCommand": "rm -f package-lock.json && npm install --legacy-peer-deps --force",
   "framework": "vite",
   "rewrites": [
     {
