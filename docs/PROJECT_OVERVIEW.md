@@ -136,10 +136,6 @@ Advanced service layer with specialized modules:
 - `middleware/auth.js`: Multi-layer authentication with impersonation awareness
 - `middleware/errorHandler.js`: Centralized error handling with security considerations
 
-**Development Tools (`backend/tools/`):**
-- `generate-password.js`: Cryptographically secure password generation
-- `jwt-rotate.js`: Automated JWT secret rotation for enhanced security
-
 ---
 
 ### Account Health Monitoring System
@@ -630,3 +626,62 @@ Role-Based Data Access
 - Database DDL: `database/*.sql`
 
 
+## Repository verification summary
+
+I scanned the repository to compare the documented architecture in this file with the actual files present on disk. Below is a concise status and recommended next steps to bring the documentation and repository into alignment.
+
+- Present and used:
+  - `backend/server.js` (server entry)
+  - `backend/controllers/*_enhanced.js` controller variants (for example `adminController_enhanced.js`, `userController_enhanced.js`, `impersonationController_enhanced.js`, `clientController_enhanced.js`, `notificationController_enhanced.js`)
+  - `backend/middleware/` (auth.js, security.js, rateLimiting.js, errorHandler.js)
+  - `backend/services/database.js`, `backend/services/supabaseService.js`, `backend/services/inviteService.js`, `backend/services/emailService.js`
+  - `backend/tools/jwt-rotate.js`, `backend/tools/generate-password.js`
+  - `frontend/src/contexts/AuthContext.tsx`, `frontend/src/lib/api.ts`, and many `frontend/src/components/*` UI files
+  - `database/*.sql` DDL files (core schema, triggers, and impersonation tables are present)
+
+- Missing / not found (referenced in this document):
+  - Plain controller variants (historical): `userController.js`, `adminController.js`, `notificationController.js` — these plain variants are not present and the project uses the `_enhanced` versions instead.
+  - Backend setup scripts referenced in the docs: `backend/setup-assignment-tables.js`, `backend/setup-role-hierarchy.js`, `backend/complete-role-setup.js` — not found in `backend/`.
+  - `database/11_sample_data.sql` — not present; sample data is likely included in other SQL files or omitted intentionally.
+
+Recommendations (pick one or more and I can implement):
+1. Clean the narrative in this `PROJECT_OVERVIEW.md` to remove historical references and point to the actual `_enhanced` filenames and present setup method. (non-invasive doc change)
+2. Add small, explicit stub setup scripts under `backend/` that execute the SQL files from `database/` (safe stubs that require environment variables to run). I can create these as idempotent scripts that require confirmation before making changes.
+3. Add a short `backend/README.md` describing how to provision the DB from `database/` SQL files and how to use existing `supabaseService.js` for automated setup.
+
+Tell me which follow-up you'd like and I'll implement it; if you want all three, I'll start with (1) then implement (3) and finally (2).
+
+1. Frontend Communication
+The frontend, built with React and Vite, interacts with the backend via REST APIs.
+It uses the api.ts file (frontend/src/lib/api.ts) to manage API requests. This file:
+Adds the Authorization header with the JWT token for authenticated requests.
+Provides helper methods for various API endpoints (e.g., authentication, user management, account health, etc.).
+The frontend also initializes a Supabase client (frontend/src/utils/supabase/client.ts) for optional direct interactions with Supabase (e.g., fetching data or using Supabase's real-time features).
+
+2. Backend Communication
+The backend, built with Node.js and Express, exposes REST APIs under /api/* for the frontend to consume.
+It uses middleware for:
+Authentication: Verifies JWT tokens sent by the frontend.
+Authorization: Enforces role-based access control (RBAC) for endpoints.
+The backend interacts with the PostgreSQL database (hosted on Supabase) using the pg library. The database connection is configured in database.js and database.js.
+
+3. Supabase Communication
+Supabase acts as the database layer for the backend. The backend uses the pg library to execute SQL queries and manage data.
+Additionally, the backend uses the Supabase JS client (backend/services/supabaseService.js) for specific operations, such as:
+Managing refresh tokens.
+Logging impersonation sessions.
+Fetching or updating data directly via Supabase's API.
+Supabase also provides database setup and provisioning scripts, such as the SQL schema in 00_create_full_schema.sql.
+
+Communication Flow:
+Frontend → Backend:
+
+The frontend sends API requests to the backend (e.g., /api/auth/login, /api/dashboard/summary).
+The backend validates the request, processes the data, and responds with the required information.
+Backend → Supabase:
+
+The backend interacts with the Supabase-hosted PostgreSQL database to fetch, insert, or update data.
+It uses SQL queries or the Supabase JS client for these operations.
+Frontend → Supabase (Optional):
+
+The frontend can directly interact with Supabase using the Supabase JS client for real-time features or specific use cases.
