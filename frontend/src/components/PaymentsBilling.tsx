@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { apiClient } from "../lib/api"
+import { EmptyState } from './ui/empty-state'
+import { ErrorAlert } from './ui/error-alert'
 
 // Simple toast implementation
 const toast = {
@@ -71,6 +73,7 @@ interface FailedPayment {
 export function PaymentsBilling() {
   // State management
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [revenueData, setRevenueData] = useState<RevenueData[]>([])
   const [subscriptionTiers, setSubscriptionTiers] = useState<SubscriptionTier[]>([])
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
@@ -86,6 +89,7 @@ export function PaymentsBilling() {
   // Load all billing data
   const loadBillingData = async () => {
     setLoading(true)
+    setError(null)
     try {
       const [
         revenueResponse,
@@ -101,105 +105,56 @@ export function PaymentsBilling() {
         apiClient.getFailedPayments()
       ])
 
-      if (revenueResponse.success && Array.isArray(revenueResponse.data)) {
-        setRevenueData(revenueResponse.data)
+      if (revenueResponse.success) {
+        setRevenueData(revenueResponse.data?.revenue || revenueResponse.data || [])
       } else {
-        // Fallback data
-        setRevenueData([
-          { month: "Jan", revenue: 45000, subscriptions: 89, churn: 5 },
-          { month: "Feb", revenue: 52000, subscriptions: 94, churn: 3 },
-          { month: "Mar", revenue: 48000, subscriptions: 88, churn: 7 },
-          { month: "Apr", revenue: 61000, subscriptions: 102, churn: 4 },
-          { month: "May", revenue: 55000, subscriptions: 98, churn: 6 },
-          { month: "Jun", revenue: 67000, subscriptions: 115, churn: 2 }
-        ])
+        setError(revenueResponse.message || 'Failed to load billing data')
+        setRevenueData([])
       }
 
       if (subscriptionResponse.success) {
-        setSubscriptionTiers(subscriptionResponse.data || [])
+        // Handle different response structures
+        const subsData = subscriptionResponse.data
+        if (subsData?.planBreakdown) {
+          setSubscriptionTiers(subsData.planBreakdown.map((plan: any) => ({
+            name: plan.plan,
+            value: plan.count,
+            color: plan.plan === 'Basic' ? '#3b82f6' : plan.plan === 'Professional' ? '#10b981' : '#f59e0b',
+            price: `$${plan.revenue / plan.count || 0}`
+          })))
+        } else {
+          setSubscriptionTiers([])
+        }
       } else {
-        // Fallback data
-        setSubscriptionTiers([
-          { name: "Basic", value: 45, color: "#8884d8", price: "$99" },
-          { name: "Professional", value: 35, color: "#82ca9d", price: "$299" },
-          { name: "Enterprise", value: 20, color: "#ffc658", price: "$599" }
-        ])
+        setSubscriptionTiers([])
       }
 
       if (transactionsResponse.success) {
-        setRecentTransactions(transactionsResponse.data || [])
+        setRecentTransactions(transactionsResponse.data?.transactions || transactionsResponse.data || [])
       } else {
-        // Fallback data
-        setRecentTransactions([
-          { id: "TXN001", company: "Elite Car Rentals", amount: "$299", plan: "Professional", status: "completed", date: "2025-01-07", method: "Credit Card" },
-          { id: "TXN002", company: "Swift Vehicle Solutions", amount: "$599", plan: "Enterprise", status: "completed", date: "2025-01-07", method: "Bank Transfer" },
-          { id: "TXN003", company: "Urban Mobility Co", amount: "$99", plan: "Basic", status: "failed", date: "2025-01-06", method: "Credit Card" },
-          { id: "TXN004", company: "Premium Fleet Services", amount: "$599", plan: "Enterprise", status: "pending", date: "2025-01-06", method: "Credit Card" },
-          { id: "TXN005", company: "City Drive Rentals", amount: "$299", plan: "Professional", status: "completed", date: "2025-01-05", method: "PayPal" }
-        ])
+        setRecentTransactions([])
       }
 
       if (renewalsResponse.success) {
         setUpcomingRenewals(renewalsResponse.data || [])
       } else {
-        // Fallback data
-        setUpcomingRenewals([
-          { id: "REN001", company: "Elite Car Rentals", plan: "Professional", amount: "$299", renewalDate: "2025-01-15", status: "upcoming", daysUntil: 8 },
-          { id: "REN002", company: "Metro Car Solutions", plan: "Enterprise", amount: "$599", renewalDate: "2025-01-18", status: "upcoming", daysUntil: 11 },
-          { id: "REN003", company: "FastLane Rentals", plan: "Basic", amount: "$99", renewalDate: "2025-01-20", status: "upcoming", daysUntil: 13 },
-          { id: "REN004", company: "Apex Vehicle Hire", plan: "Professional", amount: "$299", renewalDate: "2025-01-22", status: "upcoming", daysUntil: 15 }
-        ])
+        setUpcomingRenewals([])
       }
 
       if (failedResponse.success) {
         setFailedPayments(failedResponse.data || [])
       } else {
-        // Fallback data
-        setFailedPayments([
-          { id: "FP001", company: "Urban Mobility Co", amount: "$99", reason: "Insufficient funds", date: "2025-01-06", attempts: 2, attemptDate: "2025-01-06", nextAttempt: "2025-01-09" },
-          { id: "FP002", company: "QuickRent Auto", amount: "$299", reason: "Card expired", date: "2025-01-05", attempts: 1, attemptDate: "2025-01-05", nextAttempt: "2025-01-08" },
-          { id: "FP003", company: "Express Vehicle Co", amount: "$599", reason: "Payment declined", date: "2025-01-04", attempts: 3, attemptDate: "2025-01-04", nextAttempt: "2025-01-07" }
-        ])
+        setFailedPayments([])
       }
 
     } catch (error) {
       console.error('Error loading billing data:', error)
-      toast.error('Failed to load billing data')
-      
-      // Ensure fallback data is loaded
-      setRevenueData([
-        { month: "Jan", revenue: 45000, subscriptions: 89, churn: 5 },
-        { month: "Feb", revenue: 52000, subscriptions: 94, churn: 3 },
-        { month: "Mar", revenue: 48000, subscriptions: 88, churn: 7 },
-        { month: "Apr", revenue: 61000, subscriptions: 102, churn: 4 },
-        { month: "May", revenue: 55000, subscriptions: 98, churn: 6 },
-        { month: "Jun", revenue: 67000, subscriptions: 115, churn: 2 }
-      ])
-      
-      setRecentTransactions([
-        { id: "TXN001", company: "Elite Car Rentals", amount: "$299", plan: "Professional", status: "completed", date: "2025-01-07", method: "Credit Card" },
-        { id: "TXN002", company: "Swift Vehicle Solutions", amount: "$599", plan: "Enterprise", status: "completed", date: "2025-01-07", method: "Bank Transfer" },
-        { id: "TXN003", company: "Urban Mobility Co", amount: "$99", plan: "Basic", status: "failed", date: "2025-01-06", method: "Credit Card" },
-        { id: "TXN004", company: "Premium Fleet Services", amount: "$599", plan: "Enterprise", status: "pending", date: "2025-01-06", method: "Credit Card" },
-        { id: "TXN005", company: "City Drive Rentals", amount: "$299", plan: "Professional", status: "completed", date: "2025-01-05", method: "PayPal" }
-      ])
-      
-      setUpcomingRenewals([
-        { id: "REN001", company: "Premium Fleet Services", plan: "Enterprise", amount: "$599", renewalDate: "2025-01-15", status: "upcoming" },
-        { id: "REN002", company: "City Drive Rentals", plan: "Professional", amount: "$299", renewalDate: "2025-01-20", status: "upcoming" },
-        { id: "REN003", company: "Metro Car Services", plan: "Basic", amount: "$99", renewalDate: "2025-01-25", status: "overdue" }
-      ])
-      
-      setFailedPayments([
-        { id: "FAIL001", company: "Urban Mobility Co", amount: "$99", reason: "Insufficient funds", date: "2025-01-06", attempts: 2 },
-        { id: "FAIL002", company: "Quick Transport LLC", amount: "$299", reason: "Card expired", date: "2025-01-05", attempts: 1 }
-      ])
-      
-      setSubscriptionTiers([
-        { name: "Basic", value: 35, color: "#3b82f6", price: "$99" },
-        { name: "Professional", value: 45, color: "#10b981", price: "$299" },
-        { name: "Enterprise", value: 20, color: "#f59e0b", price: "$599" }
-      ])
+      setError(error instanceof Error ? error.message : 'Failed to load billing data')
+      setRevenueData([])
+      setRecentTransactions([])
+      setUpcomingRenewals([])
+      setFailedPayments([])
+      setSubscriptionTiers([])
     } finally {
       setLoading(false)
     }

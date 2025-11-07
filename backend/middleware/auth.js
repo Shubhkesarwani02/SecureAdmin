@@ -4,7 +4,7 @@ const { jwtSecretManager, tokenBlacklist } = require('./security');
 
 // Verify JWT token (supports both regular and impersonation tokens)
 const verifyToken = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization;//Authorization: Bearer <token>
   const token = authHeader && authHeader.startsWith('Bearer ') 
     ? authHeader.substring(7) 
     : null;

@@ -13,14 +13,23 @@
     "backend:start": "cd backend && npm run start",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
     "clean": "rm -rf frontend/node_modules backend/node_modules node_modules frontend/dist",
-    "lint": "cd frontend && npm run lint"
+    "lint": "cd frontend && npm run lint",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:reset": "prisma migrate reset",
+    "prisma:db:pull": "prisma db pull",
+    "prisma:db:push": "prisma db push",
+    "prisma:format": "prisma format"
   },
   "workspaces": [
     "frontend",
     "backend"
   ],
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "prisma": "^6.19.0"
   },
   "keywords": [
     "framtt",
@@ -35,9 +44,11 @@
   "author": "Framtt Team",
   "license": "MIT",
   "dependencies": {
+    "@prisma/client": "^6.19.0",
     "@supabase/supabase-js": "^2.55.0",
     "dotenv": "^17.2.1",
     "node-fetch": "^3.3.2",
+    "nodemailer": "^7.0.10",
     "pdfkit": "^0.17.1"
   }
 }

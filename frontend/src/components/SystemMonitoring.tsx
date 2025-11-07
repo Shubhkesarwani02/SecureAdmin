@@ -7,6 +7,8 @@ import { Server, Wifi, AlertTriangle, CheckCircle, Clock, Activity, HardDrive, C
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog"
 import { useState, useEffect } from "react"
 import { apiClient } from "../lib/api"
+import { EmptyState } from './ui/empty-state'
+import { ErrorAlert } from './ui/error-alert'
 
 // Simple toast implementation
 const toast = {
@@ -48,6 +50,7 @@ interface ErrorLog {
 export function SystemMonitoring() {
   // State management
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([])
   const [apiEndpoints, setApiEndpoints] = useState<ApiEndpoint[]>([])
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([])
@@ -60,6 +63,7 @@ export function SystemMonitoring() {
   // Load all monitoring data
   const loadMonitoringData = async () => {
     setLoading(true)
+    setError(null)
     try {
       const [
         metricsResponse,
@@ -76,40 +80,20 @@ export function SystemMonitoring() {
       if (metricsResponse.success) {
         setSystemMetrics(metricsResponse.data || [])
       } else {
-        // Fallback data
-        setSystemMetrics([
-          { time: "00:00", cpu: 45, memory: 62, disk: 78, network: 34 },
-          { time: "04:00", cpu: 52, memory: 68, disk: 79, network: 45 },
-          { time: "08:00", cpu: 78, memory: 85, disk: 80, network: 67 },
-          { time: "12:00", cpu: 65, memory: 72, disk: 81, network: 78 },
-          { time: "16:00", cpu: 58, memory: 69, disk: 82, network: 56 },
-          { time: "20:00", cpu: 43, memory: 58, disk: 83, network: 34 }
-        ])
+        setError(metricsResponse.message || 'Failed to load system metrics')
+        setSystemMetrics([])
       }
 
       if (endpointsResponse.success) {
         setApiEndpoints(endpointsResponse.data || [])
       } else {
-        // Fallback data
-        setApiEndpoints([
-          { name: "Authentication API", status: "healthy", uptime: "99.9%", responseTime: "120ms", requests: "1.2M" },
-          { name: "Booking API", status: "healthy", uptime: "99.8%", responseTime: "150ms", requests: "890K" },
-          { name: "Payment API", status: "warning", uptime: "99.2%", responseTime: "280ms", requests: "567K" },
-          { name: "Notification API", status: "healthy", uptime: "99.7%", responseTime: "95ms", requests: "2.1M" },
-          { name: "Analytics API", status: "healthy", uptime: "99.9%", responseTime: "200ms", requests: "445K" }
-        ])
+        setApiEndpoints([])
       }
 
       if (logsResponse.success && Array.isArray(logsResponse.data)) {
         setErrorLogs(logsResponse.data)
       } else {
-        // Fallback data
-        setErrorLogs([
-          { id: 1, timestamp: "2025-01-07 14:23:15", level: "ERROR", service: "Payment API", message: "Database connection timeout", count: 3 },
-          { id: 2, timestamp: "2025-01-07 13:45:22", level: "WARNING", service: "Booking API", message: "High response time detected", count: 1 },
-          { id: 3, timestamp: "2025-01-07 12:18:30", level: "ERROR", service: "Authentication API", message: "Failed login attempts spike", count: 7 },
-          { id: 4, timestamp: "2025-01-07 11:56:45", level: "INFO", service: "Analytics API", message: "Cache refresh completed", count: 1 }
-        ])
+        setErrorLogs([])
       }
 
       if (healthResponse.success) {
@@ -118,32 +102,10 @@ export function SystemMonitoring() {
 
     } catch (error) {
       console.error('Error loading monitoring data:', error)
-      toast.error('Failed to load monitoring data')
-      
-      // Ensure fallback data is loaded
-      setSystemMetrics([
-        { time: "00:00", cpu: 45, memory: 62, disk: 78, network: 34 },
-        { time: "04:00", cpu: 52, memory: 68, disk: 79, network: 45 },
-        { time: "08:00", cpu: 78, memory: 85, disk: 80, network: 67 },
-        { time: "12:00", cpu: 65, memory: 72, disk: 81, network: 78 },
-        { time: "16:00", cpu: 58, memory: 69, disk: 82, network: 56 },
-        { time: "20:00", cpu: 43, memory: 58, disk: 83, network: 34 }
-      ])
-      
-      setApiEndpoints([
-        { name: "Authentication API", status: "healthy", uptime: "99.9%", responseTime: "120ms", requests: "1.2M" },
-        { name: "Booking API", status: "healthy", uptime: "99.8%", responseTime: "150ms", requests: "890K" },
-        { name: "Payment API", status: "warning", uptime: "99.2%", responseTime: "280ms", requests: "567K" },
-        { name: "Notification API", status: "healthy", uptime: "99.7%", responseTime: "95ms", requests: "2.1M" },
-        { name: "Analytics API", status: "healthy", uptime: "99.9%", responseTime: "200ms", requests: "445K" }
-      ])
-      
-      setErrorLogs([
-        { id: 1, timestamp: "2025-01-07 14:23:15", level: "ERROR", service: "Payment API", message: "Database connection timeout", count: 3 },
-        { id: 2, timestamp: "2025-01-07 13:45:22", level: "WARNING", service: "Booking API", message: "High response time detected", count: 1 },
-        { id: 3, timestamp: "2025-01-07 12:18:30", level: "ERROR", service: "Authentication API", message: "Failed login attempts spike", count: 7 },
-        { id: 4, timestamp: "2025-01-07 11:56:45", level: "INFO", service: "Analytics API", message: "Cache refresh completed", count: 1 }
-      ])
+      setError(error instanceof Error ? error.message : 'Failed to load monitoring data')
+      setSystemMetrics([])
+      setApiEndpoints([])
+      setErrorLogs([])
     } finally {
       setLoading(false)
     }
@@ -243,7 +205,29 @@ export function SystemMonitoring() {
         </div>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <ErrorAlert
+          message={error}
+          onRetry={loadMonitoringData}
+        />
+      )}
+
+      {/* Empty State */}
+      {!error && !loading && systemMetrics.length === 0 && (
+        <EmptyState
+          icon={Server}
+          title="No monitoring data available"
+          description="System monitoring data is currently unavailable. Please check back later or contact support."
+          action={{
+            label: "Retry",
+            onClick: loadMonitoringData
+          }}
+        />
+      )}
+
       {/* System Overview */}
+      {systemMetrics.length > 0 && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -301,8 +285,10 @@ export function SystemMonitoring() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Performance Charts */}
+      {systemMetrics.length > 0 && (
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -343,8 +329,10 @@ export function SystemMonitoring() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* API Health Status */}
+      {apiEndpoints.length > 0 && (
       <Card>
         <CardHeader>
           <CardTitle>API Endpoints Health</CardTitle>
@@ -388,8 +376,10 @@ export function SystemMonitoring() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Recent Error Logs */}
+      {errorLogs.length > 0 && (
       <Card>
         <CardHeader>
           <CardTitle>Recent System Logs</CardTitle>
@@ -417,6 +407,7 @@ export function SystemMonitoring() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* System Health Details Dialog */}
       <Dialog open={showHealthDetails} onOpenChange={setShowHealthDetails}>

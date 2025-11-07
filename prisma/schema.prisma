@@ -1,0 +1,434 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       BigInt          @id @default(autoincrement())
+  fullName                 String          @map("full_name") @db.VarChar(255)
+  email                    String          @unique @db.VarChar(255)
+  phone                    String?         @db.VarChar(50)
+  role                     String          @default("admin") @db.VarChar(50)
+  department               String?         @default("General") @db.VarChar(100)
+  status                   String          @default("active") @db.VarChar(50)
+  avatar                   String?
+  bio                      String?
+  permissions              Json?           @default("[]")
+  preferences              Json?           @default("{\"theme\": \"light\", \"language\": \"en\", \"timezone\": \"America/New_York\", \"twoFactorAuth\": false, \"weeklyReports\": true, \"sessionTimeout\": \"8\", \"marketingEmails\": false, \"pushNotifications\": false, \"emailNotifications\": true}")
+  createdAt                DateTime?       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime?       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastLogin                DateTime?       @map("last_login") @db.Timestamptz(6)
+  passwordHash             String?         @map("password_hash") @db.VarChar(255)
+  isImpersonationActive    Boolean?        @default(false) @map("is_impersonation_active")
+  currentImpersonatorId    String?         @map("current_impersonator_id")
+  createdBy                String?         @map("created_by") @db.Uuid
+  invitedAt                DateTime?       @map("invited_at") @db.Timestamptz(6)
+  invitedBy                BigInt?         @map("invited_by")
+  signupCompletedAt        DateTime?       @map("signup_completed_at") @db.Timestamptz(6)
+  accountsCreated          Account[]       @relation("AccountCreator")
+  csmAssignmentsBy         CsmAssignment[] @relation("AssignedBy")
+  csmAssignments           CsmAssignment[] @relation("CsmAssignments")
+  inviteTokensSent         InviteToken[]   @relation("InvitedBy")
+  inviteTokensUsed         InviteToken[]   @relation("UsedBy")
+  notifications            Notification[]
+  refreshTokens            RefreshToken[]
+  systemLogsAsImpersonator SystemLog[]     @relation("ImpersonatorSystemLogs")
+  systemLogs               SystemLog[]     @relation("UserSystemLogs")
+  userAccountsAssignedBy   UserAccount[]   @relation("AssignedBy")
+  userAccounts             UserAccount[]
+  users                    User?           @relation("usersTousers", fields: [invitedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_users              User[]          @relation("usersTousers")
+
+  @@index([createdAt], map: "idx_users_created_at")
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+  @@index([status], map: "idx_users_status")
+  @@map("users")
+}
+
+model Account {
+  id                  BigInt               @id @default(autoincrement())
+  name                String               @unique @db.VarChar(255)
+  description         String?
+  status              String?              @default("active") @db.VarChar(50)
+  companyName         String?              @map("company_name") @db.VarChar(255)
+  contactEmail        String?              @map("contact_email") @db.VarChar(255)
+  contactPhone        String?              @map("contact_phone") @db.VarChar(50)
+  billingAddress      String?              @map("billing_address")
+  createdBy           BigInt?              @map("created_by")
+  createdAt           DateTime?            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime?            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  email               String?              @db.VarChar(255)
+  phone               String?              @db.VarChar(20)
+  address             String?
+  city                String?              @db.VarChar(100)
+  state               String?              @db.VarChar(100)
+  country             String?              @default("United States") @db.VarChar(100)
+  postalCode          String?              @map("postal_code") @db.VarChar(20)
+  website             String?              @db.VarChar(255)
+  businessLicense     String?              @map("business_license") @db.VarChar(100)
+  taxId               String?              @map("tax_id") @db.VarChar(50)
+  subscriptionPlan    String?              @default("basic") @map("subscription_plan") @db.VarChar(50)
+  subscriptionStatus  String?              @default("trial") @map("subscription_status") @db.VarChar(20)
+  subscriptionAmount  Decimal?             @default(99.00) @map("subscription_amount") @db.Decimal(10, 2)
+  nextBillingDate     DateTime?            @map("next_billing_date") @db.Timestamptz(6)
+  integrationCode     String?              @unique(map: "ux_accounts_integration_code") @map("integration_code") @db.VarChar(10)
+  aiRecommendation    Boolean?             @default(false) @map("ai_recommendation")
+  whatsappIntegration Boolean?             @default(false) @map("whatsapp_integration")
+  trackingActive      Boolean?             @default(false) @map("tracking_active")
+  marketingActive     Boolean?             @default(false) @map("marketing_active")
+  totalBookings       Int?                 @default(0) @map("total_bookings")
+  activeVehicles      Int?                 @default(0) @map("active_vehicles")
+  monthlyRevenue      Decimal?             @default(0.00) @map("monthly_revenue") @db.Decimal(12, 2)
+  healthAlerts        AccountHealthAlert[]
+  healthScores        AccountHealthScore[]
+  creator             User?                @relation("AccountCreator", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  csmAssignments      CsmAssignment[]
+  inviteTokens        InviteToken[]
+  userAccounts        UserAccount[]
+
+  @@index([createdBy], map: "idx_accounts_created_by")
+  @@index([email], map: "idx_accounts_email")
+  @@index([status], map: "idx_accounts_status")
+  @@index([subscriptionPlan], map: "idx_accounts_subscription_plan")
+  @@map("accounts")
+}
+
+model Client {
+  id                  BigInt         @id @default(autoincrement())
+  companyName         String         @map("company_name") @db.VarChar(255)
+  contactName         String         @map("contact_name") @db.VarChar(255)
+  email               String         @unique @db.VarChar(255)
+  phone               String?        @db.VarChar(50)
+  address             String?
+  city                String?        @db.VarChar(100)
+  state               String?        @db.VarChar(100)
+  zipCode             String?        @map("zip_code") @db.VarChar(20)
+  country             String?        @default("United States") @db.VarChar(100)
+  status              String         @default("active") @db.VarChar(50)
+  subscriptionPlan    String?        @default("basic") @map("subscription_plan") @db.VarChar(100)
+  subscriptionStatus  String?        @default("active") @map("subscription_status") @db.VarChar(50)
+  apiKey              String?        @unique @map("api_key") @db.VarChar(255)
+  webhookUrl          String?        @map("webhook_url")
+  integrationSettings Json?          @default("{}") @map("integration_settings")
+  billingInfo         Json?          @default("{}") @map("billing_info")
+  preferences         Json?          @default("{\"weeklyReports\": true, \"apiNotifications\": true, \"dataRetentionDays\": 365, \"emailNotifications\": true}")
+  createdAt           DateTime?      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime?      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastActivity        DateTime?      @map("last_activity") @db.Timestamptz(6)
+  integrationCode     String?        @map("integration_code") @db.VarChar(10)
+  subscriptionAmount  Decimal?       @default(99.00) @map("subscription_amount") @db.Decimal(10, 2)
+  nextBillingDate     DateTime?      @map("next_billing_date") @db.Timestamptz(6)
+  aiRecommendation    Boolean?       @default(false) @map("ai_recommendation")
+  whatsappIntegration Boolean?       @default(false) @map("whatsapp_integration")
+  trackingActive      Boolean?       @default(false) @map("tracking_active")
+  marketingActive     Boolean?       @default(false) @map("marketing_active")
+  totalBookings       Int?           @default(0) @map("total_bookings")
+  activeVehicles      Int?           @default(0) @map("active_vehicles")
+  monthlyRevenue      Decimal?       @default(0.00) @map("monthly_revenue") @db.Decimal(12, 2)
+  lastLogin           DateTime?      @map("last_login") @db.Timestamptz(6)
+  notifications       Notification[]
+  vehicles            Vehicle[]
+
+  @@index([subscriptionPlan], map: "idx_client_dashboard_view_plan")
+  @@index([status], map: "idx_client_dashboard_view_status")
+  @@index([apiKey], map: "idx_clients_api_key")
+  @@index([createdAt], map: "idx_clients_created_at")
+  @@index([email], map: "idx_clients_email")
+  @@index([integrationCode], map: "idx_clients_integration_code")
+  @@index([status], map: "idx_clients_status")
+  @@index([subscriptionPlan], map: "idx_clients_subscription_plan")
+  @@map("clients")
+}
+
+model AccountHealthAlert {
+  id             BigInt    @id @default(autoincrement())
+  clientId       BigInt    @map("client_id")
+  alertType      String    @map("alert_type") @db.VarChar(50)
+  status         String    @default("active") @db.VarChar(20)
+  message        String?
+  thresholdValue Int?      @map("threshold_value")
+  currentValue   Int?      @map("current_value")
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  acknowledgedAt DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz(6)
+  client         Account   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([clientId], map: "idx_health_alerts_client_id")
+  @@index([status], map: "idx_health_alerts_status")
+  @@index([alertType], map: "idx_health_alerts_type")
+  @@map("account_health_alerts")
+}
+
+model AccountHealthScore {
+  id          BigInt    @id @default(autoincrement())
+  clientId    BigInt    @map("client_id")
+  healthScore Int       @map("health_score")
+  factors     Json?     @default("{}")
+  lastUpdated DateTime? @default(now()) @map("last_updated") @db.Timestamptz(6)
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  client      Account   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([clientId], map: "idx_health_scores_client_id")
+  @@index([healthScore], map: "idx_health_scores_score")
+  @@map("account_health_scores")
+}
+
+model CsmAssignment {
+  id         BigInt    @id @default(autoincrement())
+  csmId      BigInt    @map("csm_id")
+  accountId  BigInt    @map("account_id")
+  assignedAt DateTime? @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  assignedBy BigInt?   @map("assigned_by")
+  isPrimary  Boolean?  @default(false) @map("is_primary")
+  notes      String?
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  assigner   User?     @relation("AssignedBy", fields: [assignedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  csm        User      @relation("CsmAssignments", fields: [csmId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([csmId, accountId])
+  @@index([accountId], map: "idx_csm_assignments_account_id")
+  @@index([csmId], map: "idx_csm_assignments_csm_id")
+  @@index([isPrimary], map: "idx_csm_assignments_is_primary")
+  @@map("csm_assignments")
+}
+
+model DashboardMetric {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  metricName      String    @default("daily_summary") @map("metric_name") @db.VarChar(100)
+  metricValue     Decimal?  @map("metric_value") @db.Decimal
+  metricData      Json?     @map("metric_data")
+  dateRecorded    DateTime  @default(dbgenerated("CURRENT_DATE")) @map("date_recorded") @db.Date
+  createdAt       DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  date            DateTime? @db.Date
+  metricType      String?   @map("metric_type")
+  totalCompanies  Int?      @default(0) @map("total_companies")
+  activeCompanies Int?      @default(0) @map("active_companies")
+  totalUsers      Int?      @default(0) @map("total_users")
+  totalVehicles   Int?      @default(0) @map("total_vehicles")
+  activeVehicles  Int?      @default(0) @map("active_vehicles")
+  totalRevenue    Decimal?  @default(0) @map("total_revenue") @db.Decimal
+  monthlyRevenue  Decimal?  @default(0) @map("monthly_revenue") @db.Decimal
+
+  @@unique([date, metricType], map: "ux_dashboard_metrics_date_type")
+  @@map("dashboard_metrics")
+}
+
+model ImpersonationLog {
+  id                 Int       @id @default(autoincrement())
+  impersonatorId     String?   @map("impersonator_id")
+  impersonatedUserId String?   @map("impersonated_user_id")
+  sessionId          String?   @map("session_id")
+  action             String?   @db.VarChar(50)
+  ipAddress          String?   @map("ip_address") @db.Inet
+  userAgent          String?   @map("user_agent")
+  createdAt          DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  endedAt            DateTime? @map("ended_at") @db.Timestamptz(6)
+  isActive           Boolean?  @default(true) @map("is_active")
+  endTime            DateTime? @map("end_time") @db.Timestamptz(6)
+  reason             String?
+  impersonatedId     String?   @map("impersonated_id")
+
+  @@index([impersonatorId], map: "idx_impersonation_logs_impersonator")
+  @@map("impersonation_logs")
+}
+
+model IntegrationCode {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String    @unique @db.VarChar(50)
+  name        String    @db.VarChar(100)
+  description String?
+  isActive    Boolean?  @default(true) @map("is_active")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  usageCount  Int?      @default(0) @map("usage_count")
+  lastUsed    DateTime? @map("last_used") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  status      String?   @default("active") @db.VarChar(50)
+
+  @@index([createdAt], map: "idx_integration_codes_created_at")
+  @@index([status], map: "idx_integration_codes_status")
+  @@map("integration_codes")
+}
+
+model InviteToken {
+  id          BigInt    @id @default(autoincrement())
+  token       String    @unique @db.VarChar(255)
+  email       String    @db.VarChar(255)
+  invitedBy   BigInt    @map("invited_by")
+  role        String    @db.VarChar(50)
+  accountId   BigInt?   @map("account_id")
+  companyName String?   @map("company_name") @db.VarChar(255)
+  fullName    String?   @map("full_name") @db.VarChar(255)
+  phone       String?   @db.VarChar(20)
+  status      String    @default("pending") @db.VarChar(50)
+  expiresAt   DateTime  @default(dbgenerated("(now() + '48:00:00'::interval)")) @map("expires_at") @db.Timestamptz(6)
+  usedAt      DateTime? @map("used_at") @db.Timestamptz(6)
+  usedBy      BigInt?   @map("used_by")
+  metadata    Json?
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account     Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inviter     User      @relation("InvitedBy", fields: [invitedBy], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        User?     @relation("UsedBy", fields: [usedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([accountId], map: "idx_invite_tokens_account_id")
+  @@index([email], map: "idx_invite_tokens_email")
+  @@index([expiresAt], map: "idx_invite_tokens_expires_at")
+  @@index([invitedBy], map: "idx_invite_tokens_invited_by")
+  @@index([status], map: "idx_invite_tokens_status")
+  @@index([token], map: "idx_invite_tokens_token")
+  @@map("invite_tokens")
+}
+
+model Notification {
+  id         BigInt    @id @default(autoincrement())
+  userId     BigInt?   @map("user_id")
+  clientId   BigInt?   @map("client_id")
+  type       String    @db.VarChar(50)
+  category   String?   @default("general") @db.VarChar(100)
+  title      String    @db.VarChar(255)
+  message    String
+  data       Json?     @default("{}")
+  isRead     Boolean?  @default(false) @map("is_read")
+  isArchived Boolean?  @default(false) @map("is_archived")
+  priority   String?   @default("medium") @db.VarChar(20)
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([clientId], map: "idx_notifications_client_id")
+  @@index([createdAt], map: "idx_notifications_created_at")
+  @@index([isRead], map: "idx_notifications_is_read")
+  @@index([priority], map: "idx_notifications_priority")
+  @@index([type], map: "idx_notifications_type")
+  @@index([userId], map: "idx_notifications_user_id")
+  @@map("notifications")
+}
+
+model RefreshToken {
+  id        BigInt    @id @default(autoincrement())
+  userId    BigInt    @map("user_id")
+  tokenHash String    @map("token_hash") @db.VarChar(256)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  isRevoked Boolean?  @default(false) @map("is_revoked")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expiresAt], map: "idx_refresh_tokens_expires_at")
+  @@index([isRevoked], map: "idx_refresh_tokens_is_revoked")
+  @@index([userId], map: "idx_refresh_tokens_user_id")
+  @@map("refresh_tokens")
+}
+
+model SystemLog {
+  id             BigInt    @id @default(autoincrement())
+  userId         BigInt?   @map("user_id")
+  impersonatorId BigInt?   @map("impersonator_id")
+  action         String    @db.VarChar(255)
+  resourceType   String?   @map("resource_type") @db.VarChar(100)
+  resourceId     BigInt?   @map("resource_id")
+  oldValues      Json?     @map("old_values")
+  newValues      Json?     @map("new_values")
+  ipAddress      String?   @map("ip_address") @db.Inet
+  userAgent      String?   @map("user_agent")
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  level          String?   @db.VarChar(50)
+  service        String?   @db.VarChar(100)
+  message        String?
+  details        Json?     @default("{}")
+  impersonator   User?     @relation("ImpersonatorSystemLogs", fields: [impersonatorId], references: [id], onUpdate: NoAction)
+  user           User?     @relation("UserSystemLogs", fields: [userId], references: [id], onUpdate: NoAction)
+
+  @@index([action], map: "idx_system_logs_action")
+  @@index([createdAt], map: "idx_system_logs_created_at")
+  @@index([userId], map: "idx_system_logs_user_id")
+  @@map("system_logs")
+}
+
+model UserAccount {
+  id            BigInt    @id @default(autoincrement())
+  userId        BigInt    @map("user_id")
+  accountId     BigInt    @map("account_id")
+  roleInAccount String?   @default("member") @map("role_in_account") @db.VarChar(50)
+  assignedAt    DateTime? @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  assignedBy    BigInt?   @map("assigned_by")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  assigner      User?     @relation("AssignedBy", fields: [assignedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, accountId])
+  @@index([accountId], map: "idx_user_accounts_account_id")
+  @@index([roleInAccount], map: "idx_user_accounts_role")
+  @@index([userId], map: "idx_user_accounts_user_id")
+  @@map("user_accounts")
+}
+
+model AuditLog {
+  id             Int       @id @default(autoincrement())
+  userId         String?   @map("user_id")
+  impersonatorId String?   @map("impersonator_id")
+  action         String    @db.VarChar(100)
+  resourceType   String?   @map("resource_type") @db.VarChar(50)
+  resourceId     String?   @map("resource_id") @db.VarChar(255)
+  oldValues      Json?     @map("old_values")
+  newValues      Json?     @map("new_values")
+  ipAddress      String?   @map("ip_address") @db.Inet
+  userAgent      String?   @map("user_agent")
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([action], map: "idx_audit_logs_action")
+  @@index([userId], map: "idx_audit_logs_user_id")
+  @@map("audit_logs")
+}
+
+model Vehicle {
+  id                     BigInt    @id @default(autoincrement())
+  clientId               BigInt?   @map("client_id")
+  vehicleId              String    @map("vehicle_id") @db.VarChar(100)
+  make                   String?   @db.VarChar(100)
+  model                  String?   @db.VarChar(100)
+  year                   Int?
+  vin                    String?   @db.VarChar(17)
+  licensePlate           String?   @map("license_plate") @db.VarChar(20)
+  color                  String?   @db.VarChar(50)
+  vehicleType            String?   @map("vehicle_type") @db.VarChar(50)
+  fuelType               String?   @map("fuel_type") @db.VarChar(50)
+  status                 String    @default("available") @db.VarChar(50)
+  currentLocation        Json?     @map("current_location")
+  mileage                Int?      @default(0)
+  rentalRateDaily        Decimal?  @map("rental_rate_daily") @db.Decimal(10, 2)
+  rentalRateWeekly       Decimal?  @map("rental_rate_weekly") @db.Decimal(10, 2)
+  rentalRateMonthly      Decimal?  @map("rental_rate_monthly") @db.Decimal(10, 2)
+  features               Json?     @default("[]")
+  maintenanceInfo        Json?     @default("{}") @map("maintenance_info")
+  insuranceInfo          Json?     @default("{}") @map("insurance_info")
+  images                 Json?     @default("[]")
+  createdAt              DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  currentBookingId       BigInt?   @map("current_booking_id")
+  currentBookingStart    DateTime? @map("current_booking_start") @db.Date
+  currentBookingEnd      DateTime? @map("current_booking_end") @db.Date
+  currentBookingCustomer String?   @map("current_booking_customer") @db.VarChar(255)
+  client                 Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([clientId, vehicleId])
+  @@index([clientId], map: "idx_vehicles_client_id")
+  @@index([createdAt], map: "idx_vehicles_created_at")
+  @@index([make, model], map: "idx_vehicles_make_model")
+  @@index([status], map: "idx_vehicles_status")
+  @@index([vehicleId], map: "idx_vehicles_vehicle_id")
+  @@map("vehicles")
+}

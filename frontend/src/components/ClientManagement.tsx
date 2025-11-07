@@ -53,6 +53,8 @@ import {
   Key
 } from 'lucide-react'
 import { apiClient } from '../lib/api'
+import { EmptyState } from './ui/empty-state'
+import { ErrorAlert } from './ui/error-alert'
 
 // Simple toast implementation
 const toast = {
@@ -97,6 +99,7 @@ export default function ClientManagement() {
   const { userProfile } = useAuth()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<ClientStats | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
@@ -114,40 +117,19 @@ export default function ClientManagement() {
   // Load clients from API
   const loadClients = async () => {
     setLoading(true)
+    setError(null)
     try {
       const response = await apiClient.getClients()
       if (response.success) {
         setClients(response.data || [])
       } else {
-        // Set mock data as fallback
-        setClients([
-          {
-            id: "1",
-            companyName: "Elite Car Rentals",
-            email: "admin@elitecar.com",
-            phone: "+1-555-0123",
-            planType: "Professional",
-            status: "Active",
-            createdAt: "2024-01-15",
-            lastLogin: "2025-01-07",
-            billingAddress: "123 Business St, NY"
-          },
-          {
-            id: "2", 
-            companyName: "Swift Vehicle Solutions",
-            email: "contact@swiftvehicle.com",
-            phone: "+1-555-0456",
-            planType: "Enterprise",
-            status: "Active",
-            createdAt: "2024-02-20",
-            lastLogin: "2025-01-06",
-            billingAddress: "456 Corporate Ave, CA"
-          }
-        ])
+        setError(response.message || 'Failed to load clients')
+        setClients([])
       }
     } catch (error) {
       console.error('Error loading clients:', error)
-      toast.error('Failed to load clients')
+      setError(error instanceof Error ? error.message : 'Failed to load clients')
+      setClients([])
     } finally {
       setLoading(false)
     }
@@ -158,24 +140,25 @@ export default function ClientManagement() {
     try {
       const response = await apiClient.getClientStats()
       if (response.success) {
-        setStats(response.data.stats)
+        setStats(response.data.stats || response.data)
       } else {
-        // Set mock stats as fallback
-        setStats({
-          totalClients: 12,
-          activeClients: 8,
-          inactiveClients: 3,
-          newThisMonth: 2
-        })
+        console.error('Failed to load client stats:', response.message)
+        // Calculate stats from clients array if available
+        if (clients.length > 0) {
+          setStats({
+            totalClients: clients.length,
+            activeClients: clients.filter(c => c.status === 'Active').length,
+            inactiveClients: clients.filter(c => c.status === 'Inactive').length,
+            newThisMonth: clients.filter(c => {
+              const created = new Date(c.createdAt)
+              const now = new Date()
+              return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear()
+            }).length
+          })
+        }
       }
     } catch (error) {
       console.error('Error loading stats:', error)
-      setStats({
-        totalClients: 12,
-        activeClients: 8,
-        inactiveClients: 3,
-        newThisMonth: 2
-      })
     }
   }
 
@@ -247,6 +230,17 @@ export default function ClientManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Error Alert */}
+      {error && (
+        <ErrorAlert
+          message={error}
+          onRetry={() => {
+            loadClients()
+            loadStats()
+          }}
+        />
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
@@ -408,7 +402,29 @@ export default function ClientManagement() {
             Showing {filteredClients.length} of {clients.length} clients
           </div>
 
+          {/* Empty State */}
+          {!error && filteredClients.length === 0 && !loading && (
+            <EmptyState
+              icon={Users}
+              title={searchTerm ? "No clients found" : "No clients yet"}
+              description={
+                searchTerm
+                  ? "Try adjusting your search or filters"
+                  : "Get started by adding your first client"
+              }
+              action={
+                canAddClients && !searchTerm
+                  ? {
+                      label: "Add Client",
+                      onClick: () => setShowAddDialog(true)
+                    }
+                  : undefined
+              }
+            />
+          )}
+
           {/* Clients Table */}
+          {filteredClients.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
@@ -461,6 +477,7 @@ export default function ClientManagement() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 

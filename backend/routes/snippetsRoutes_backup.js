@@ -261,9 +261,20 @@ router.post('/', async (req, res) => {
     });
   }
 });
+  try {
+    });
+  } catch (error) {
+    logger.error('Error fetching snippet stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch snippet stats',
+      error: error.message
+    });
+  }
+});
 
-// PUT /api/snippets/:id
-router.put('/:id', async (req, res) => {
+// POST /api/snippets
+router.post('/', async (req, res) => {
   try {
     const { id } = req.params;
     const {

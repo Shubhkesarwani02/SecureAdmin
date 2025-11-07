@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog"
 import { apiClient } from '../lib/api'
+import { EmptyState } from './ui/empty-state'
+import { ErrorAlert } from './ui/error-alert'
 
 interface AdminUser {
   id: number | string
@@ -55,6 +57,7 @@ interface AuditLog {
 
 const AdminSettings: React.FC = () => {
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
   const [settings, setSettings] = useState<SystemSettings>({
     security: {
@@ -97,35 +100,18 @@ const AdminSettings: React.FC = () => {
   const loadAdminData = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await apiClient.getUsers({ role: 'admin' })
       if (response.success && response.data) {
         setAdminUsers(response.data)
       } else {
-        // Fallback data
-        setAdminUsers([
-          {
-            id: 1,
-            name: "John Anderson",
-            email: "john@framtt.com",
-            role: "Super Admin",
-            status: "Active",
-            lastLogin: "2025-01-07 09:30",
-            permissions: ["full_access", "user_management", "system_config", "billing_access"]
-          },
-          {
-            id: 2,
-            name: "Sarah Chen",
-            email: "sarah@framtt.com",
-            role: "Admin",
-            status: "Active",
-            lastLogin: "2025-01-06 14:22",
-            permissions: ["user_management", "client_support", "reports_access"]
-          }
-        ])
+        setError(response.message || 'Failed to load admin users')
+        setAdminUsers([])
       }
     } catch (error) {
       console.error('Error loading admin users:', error)
-      toast.error('Failed to load admin users')
+      setError(error instanceof Error ? error.message : 'Failed to load admin users')
+      setAdminUsers([])
     } finally {
       setLoading(false)
     }
@@ -146,16 +132,13 @@ const AdminSettings: React.FC = () => {
     try {
       const response = await apiClient.getAuditLogs({ limit: 10 })
       if (response.success && response.data) {
-        setAuditLogs(response.data.logs)
+        setAuditLogs(response.data.logs || [])
       } else {
-        // Fallback data
-        setAuditLogs([
-          { id: 1, user: "John Anderson", action: "Updated system settings", timestamp: "2025-01-07 10:15", ip: "192.168.1.100" },
-          { id: 2, user: "Sarah Chen", action: "Created new admin user", timestamp: "2025-01-06 16:30", ip: "192.168.1.105" }
-        ])
+        setAuditLogs([])
       }
     } catch (error) {
       console.error('Error loading audit logs:', error)
+      setAuditLogs([])
     }
   }
 

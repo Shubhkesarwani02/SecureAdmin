@@ -93,3 +93,5 @@ pnpm-lock.yaml
 # Keep only root package-lock.json
 !package-lock.json
 .env.production.local
+/generated/prisma
+/PRISMA_CHEATSHEET.md

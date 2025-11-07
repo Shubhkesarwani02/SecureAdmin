@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { apiClient } from '../lib/api'
+import { EmptyState } from './ui/empty-state'
+import { ErrorAlert } from './ui/error-alert'
 
 interface IntegrationSnippet {
   id: number | string
@@ -41,6 +43,7 @@ const SnippetManager: React.FC = () => {
     topPlatform: 'Web'
   })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [platformFilter, setPlatformFilter] = useState("All")
   const [selectedSnippet, setSelectedSnippet] = useState<IntegrationSnippet | null>(null)
@@ -74,79 +77,18 @@ const SnippetManager: React.FC = () => {
   const loadSnippets = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await apiClient.getIntegrationSnippets()
       if (response.success && Array.isArray(response.data)) {
         setSnippets(response.data)
       } else {
-        // Fallback data
-        setSnippets([
-          {
-            id: 1,
-            clientCode: "FR12345",
-            companyName: "TechCorp Solutions",
-            platform: "Web",
-            status: "Active" as const,
-            snippet: `<script src="https://framtt.com/js/FR12345.js"></script>`,
-            integrations: ["Event Tracking", "Analytics Dashboard"],
-            createdAt: "2024-01-15",
-            lastUsed: "2024-01-20",
-            usageCount: 234
-          },
-          {
-            id: 2,
-            clientCode: "FR67890",
-            companyName: "Digital Innovations",
-            platform: "Mobile",
-            status: "Active" as const,
-            snippet: `import { FramttSDK } from '@framtt/mobile-sdk';\nFramttSDK.init('FR67890');`,
-            integrations: ["Push Notifications", "Authentication"],
-            createdAt: "2024-01-10",
-            lastUsed: "2024-01-19",
-            usageCount: 156
-          }
-        ])
+        setError(response.message || 'Failed to load integration snippets')
+        setSnippets([])
       }
     } catch (error) {
       console.error('Error loading snippets:', error)
-      toast.error('Failed to load integration snippets')
-      
-      // Ensure fallback data is loaded
-      const fallbackSnippets = [
-        {
-          id: 1,
-          clientCode: "FR12345",
-          companyName: "TechCorp Solutions",
-          platform: "Web",
-          status: "Active" as const,
-          snippet: `<script src="https://framtt.com/js/FR12345.js"></script>`,
-          integrations: ["Event Tracking", "Analytics Dashboard"],
-          createdAt: "2025-01-01",
-          lastUsed: "2025-01-07",
-          usageCount: 245
-        },
-        {
-          id: 2,
-          clientCode: "FR12346",
-          companyName: "Elite Car Rentals",
-          platform: "Mobile",
-          status: "Active" as const,
-          snippet: `<script src="https://framtt.com/js/FR12346.js"></script>`,
-          integrations: ["Event Tracking"],
-          createdAt: "2025-01-02",
-          lastUsed: "2025-01-06",
-          usageCount: 189
-        }
-      ]
-      
-      setSnippets(fallbackSnippets)
-      
-      // Also set fallback stats
-      setStats({
-        totalSnippets: fallbackSnippets.length,
-        activeSnippets: fallbackSnippets.filter(s => s.status === 'Active').length,
-        totalUsage: fallbackSnippets.reduce((sum, s) => sum + s.usageCount, 0),
-        topPlatform: 'Web'
-      })
+      setError(error instanceof Error ? error.message : 'Failed to load integration snippets')
+      setSnippets([])
     } finally {
       setLoading(false)
     }
@@ -158,23 +100,24 @@ const SnippetManager: React.FC = () => {
       if (response.success && response.data) {
         setStats(response.data)
       } else {
-        // Fallback stats
-        setStats({
-          totalSnippets: Array.isArray(snippets) ? snippets.length : 0,
-          activeSnippets: Array.isArray(snippets) ? snippets.filter(s => s.status === 'Active').length : 0,
-          totalUsage: Array.isArray(snippets) ? snippets.reduce((sum, s) => sum + s.usageCount, 0) : 0,
-          topPlatform: 'Web'
-        })
+        // Calculate stats from snippets if available
+        if (Array.isArray(snippets) && snippets.length > 0) {
+          const platformCounts: Record<string, number> = {}
+          snippets.forEach(s => {
+            platformCounts[s.platform] = (platformCounts[s.platform] || 0) + 1
+          })
+          const topPlatform = Object.entries(platformCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Web'
+          
+          setStats({
+            totalSnippets: snippets.length,
+            activeSnippets: snippets.filter(s => s.status === 'Active').length,
+            totalUsage: snippets.reduce((sum, s) => sum + (s.usageCount || 0), 0),
+            topPlatform
+          })
+        }
       }
     } catch (error) {
       console.error('Error loading stats:', error)
-      // Set fallback stats in case of error
-      setStats({
-        totalSnippets: Array.isArray(snippets) ? snippets.length : 0,
-        activeSnippets: Array.isArray(snippets) ? snippets.filter(s => s.status === 'Active').length : 0,
-        totalUsage: Array.isArray(snippets) ? snippets.reduce((sum, s) => sum + s.usageCount, 0) : 0,
-        topPlatform: 'Web'
-      })
     }
   }
 
@@ -344,6 +287,17 @@ const SnippetManager: React.FC = () => {
         </Button>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <ErrorAlert
+          message={error}
+          onRetry={() => {
+            loadSnippets()
+            loadStats()
+          }}
+        />
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -423,6 +377,25 @@ const SnippetManager: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Empty State */}
+          {!error && filteredSnippets.length === 0 && !loading && (
+            <EmptyState
+              icon={Code}
+              title={searchTerm || platformFilter !== "All" ? "No snippets found" : "No integration snippets yet"}
+              description={
+                searchTerm || platformFilter !== "All"
+                  ? "Try adjusting your search or filters"
+                  : "Get started by generating your first integration code"
+              }
+              action={{
+                label: "Generate New Code",
+                onClick: handleCreateSnippet
+              }}
+            />
+          )}
+
+          {/* Snippets Table */}
+          {filteredSnippets.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
@@ -517,6 +490,7 @@ const SnippetManager: React.FC = () => {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 

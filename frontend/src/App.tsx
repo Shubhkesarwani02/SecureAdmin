@@ -1,43 +1,111 @@
-"use client"
+"use client";
 
-import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom"
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger } from "./components/ui/sidebar"
-import { BarChart3, Users, Activity, CreditCard, Code, Settings, Shield, Bell, User, LogOut, UserCog, UserCheck, HeartPulse } from "lucide-react"
-import { OverviewDashboard } from "./components/OverviewDashboard"
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+  Navigate,
+} from "react-router-dom";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "./components/ui/sidebar";
+import {
+  BarChart3,
+  Users,
+  Activity,
+  CreditCard,
+  Code,
+  Settings,
+  Shield,
+  Bell,
+  User,
+  LogOut,
+  UserCog,
+  UserCheck,
+  HeartPulse,
+} from "lucide-react";
+import { OverviewDashboard } from "./components/OverviewDashboard";
 // import VehicleManagement from "./components/VehicleManagement"
 // import Dashboard from "./components/Dashboard"
-import ClientManagement from "./components/ClientManagement"
+import ClientManagement from "./components/ClientManagement";
 // import NotificationCenter from "./components/NotificationCenter"
-import { SystemMonitoring } from "./components/SystemMonitoring"
-import { AccountHealth } from "./components/AccountHealth"
-import { PaymentsBilling } from "./components/PaymentsBilling"
-import SnippetManager from "./components/SnippetManager"
-import AdminSettings from "./components/AdminSettings"
-import { UserManagement } from "./components/UserManagement"
-import { ImpersonationHistory } from "./components/ImpersonationHistory"
-import { ImpersonationBanner } from "./components/ImpersonationBanner"
-import { NotFound } from "./components/NotFound"
-import { LoginPage } from "./components/LoginPage"
-import OnboardingPage from "./components/OnboardingPage"
-import InviteManagement from "./components/InviteManagement"
-import { ProtectedRoute } from "./components/ProtectedRoute"
-import { BreadcrumbNavigation } from "./components/BreadcrumbNavigation"
-import { Separator } from "./components/ui/separator"
-import { Button } from "./components/ui/button"
-import { Badge } from "./components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./components/ui/dialog"
-import { Input } from "./components/ui/input"
-import { Label } from "./components/ui/label"
-import { Textarea } from "./components/ui/textarea"
-import { Switch } from "./components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./components/ui/alert-dialog"
-import { useState, useEffect } from "react"
-import { AuthProvider, useAuth } from "./contexts/AuthContext"
-import { toast } from "sonner"
+import { SystemMonitoring } from "./components/SystemMonitoring";
+import { AccountHealth } from "./components/AccountHealth";
+import { PaymentsBilling } from "./components/PaymentsBilling";
+import SnippetManager from "./components/SnippetManager";
+import AdminSettings from "./components/AdminSettings";
+import { UserManagement } from "./components/UserManagement";
+import { ImpersonationHistory } from "./components/ImpersonationHistory";
+import { ImpersonationBanner } from "./components/ImpersonationBanner";
+import { NotFound } from "./components/NotFound";
+import { LoginPage } from "./components/LoginPage";
+import OnboardingPage from "./components/OnboardingPage";
+import InviteManagement from "./components/InviteManagement";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { BreadcrumbNavigation } from "./components/BreadcrumbNavigation";
+import { Separator } from "./components/ui/separator";
+import { Button } from "./components/ui/button";
+import { Badge } from "./components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./components/ui/dialog";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
+import { Textarea } from "./components/ui/textarea";
+import { Switch } from "./components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./components/ui/alert-dialog";
+import { useState, useEffect } from "react";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { toast } from "sonner";
 
 const menuItems = [
   {
@@ -45,72 +113,72 @@ const menuItems = [
     icon: BarChart3,
     path: "/",
     key: "overview",
-    description: "Dashboard metrics & analytics"
+    description: "Dashboard metrics & analytics",
   },
   {
     title: "Client Management",
     icon: Users,
     path: "/clients",
     key: "clients",
-    description: "Manage tenant accounts"
+    description: "Manage tenant accounts",
   },
   {
     title: "User Management",
     icon: UserCog,
     path: "/users",
     key: "users",
-    description: "Manage users and roles"
+    description: "Manage users and roles",
   },
   {
-    title: "Invite Management", 
+    title: "Invite Management",
     icon: UserCheck,
     path: "/invites",
     key: "invites",
-    description: "Send invitations & manage onboarding"
+    description: "Send invitations & manage onboarding",
   },
   {
     title: "Account Health",
     icon: HeartPulse,
     path: "/account-health",
     key: "account-health",
-    description: "Proactive client health monitoring"
+    description: "Proactive client health monitoring",
   },
   {
     title: "System Monitoring",
     icon: Activity,
     path: "/monitoring",
     key: "monitoring",
-    description: "System health & performance"
+    description: "System health & performance",
   },
   {
     title: "Payments & Billing",
     icon: CreditCard,
     path: "/payments",
     key: "payments",
-    description: "Revenue & billing management"
+    description: "Revenue & billing management",
   },
   {
     title: "Integration Snippets",
     icon: Code,
     path: "/snippets",
     key: "snippets",
-    description: "Code snippets & API keys"
+    description: "Code snippets & API keys",
   },
   {
     title: "Impersonation History",
     icon: UserCheck,
     path: "/impersonation-history",
     key: "impersonation",
-    description: "View impersonation logs"
+    description: "View impersonation logs",
   },
   {
     title: "Admin Settings",
     icon: Settings,
     path: "/settings",
     key: "settings",
-    description: "System configuration"
-  }
-]
+    description: "System configuration",
+  },
+];
 
 const notifications = [
   {
@@ -118,119 +186,123 @@ const notifications = [
     title: "New client registration",
     description: "Premium Fleet Services completed KYC verification",
     time: "2 minutes ago",
-    unread: true
+    unread: true,
   },
   {
     id: 2,
     title: "Payment processed",
     description: "Monthly subscription payment received from Elite Car Rentals",
     time: "1 hour ago",
-    unread: true
+    unread: true,
   },
   {
     id: 3,
     title: "System maintenance scheduled",
     description: "Database maintenance planned for tonight at 2:00 AM",
     time: "3 hours ago",
-    unread: false
-  }
-]
+    unread: false,
+  },
+];
 
-function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: { 
+function AppSidebar({
+  onProfileClick,
+  onAccountPreferences,
+  onLogoutClick,
+}: {
   onProfileClick: () => void;
   onAccountPreferences: () => void;
   onLogoutClick: () => void;
 }) {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { userProfile } = useAuth()
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { userProfile } = useAuth();
 
   const getActiveKey = (pathname: string) => {
-    const item = menuItems.find(item => item.path === pathname)
-    return item ? item.key : "overview"
-  }
+    const item = menuItems.find((item) => item.path === pathname);
+    return item ? item.key : "overview";
+  };
 
   const getFilteredMenuItems = () => {
-    if (!userProfile) return menuItems
-    
+    if (!userProfile) return menuItems;
+
     // Filter menu items based on user role according to the access matrix
-    return menuItems.filter(item => {
+    return menuItems.filter((item) => {
       switch (item.key) {
-        case 'overview':
+        case "overview":
           // All roles can see overview
-          return true
-          
-        case 'clients':
+          return true;
+
+        case "clients":
           // Superadmin: Only superadmin can manage client accounts and subscriptions
           // Admin: No access
-          // CSM: No access  
-          return userProfile.role === 'superadmin'
-          
-        case 'users':
+          // CSM: No access
+          return userProfile.role === "superadmin";
+
+        case "users":
           // Superadmin: Can see and manage end user and admins both
           // Admin: Can see and manage all assigned csms, can impersonate csm
           // CSM: Can see all assigned accounts, but cant impersonate
-          return ['superadmin', 'admin', 'csm'].includes(userProfile.role)
-          
-        case 'invites':
+          return ["superadmin", "admin", "csm"].includes(userProfile.role);
+
+        case "invites":
           // Superadmin: Can invite admins as well as csms
           // Admin: Can invite csms
           // CSM: No invitation window
-          return ['superadmin', 'admin'].includes(userProfile.role)
-          
-        case 'account-health':
+          return ["superadmin", "admin"].includes(userProfile.role);
+
+        case "account-health":
           // Superadmin: All clients
           // Admin: All assigned clients
           // CSM: No access
-          return ['superadmin', 'admin'].includes(userProfile.role)
-          
-        case 'monitoring':
+          return ["superadmin", "admin"].includes(userProfile.role);
+
+        case "monitoring":
           // Superadmin: All clients
           // Admin: All assigned clients
           // CSM: No access
-          return ['superadmin', 'admin'].includes(userProfile.role)
-          
-        case 'payments':
+          return ["superadmin", "admin"].includes(userProfile.role);
+
+        case "payments":
           // Superadmin: Only SA can manage subscriptions and payments
           // Admin: No access
           // CSM: No access
-          return userProfile.role === 'superadmin'
-          
-        case 'snippets':
+          return userProfile.role === "superadmin";
+
+        case "snippets":
           // Superadmin: All clients
           // Admin: All assigned clients
           // CSM: All accounts under them
-          return ['superadmin', 'admin', 'csm'].includes(userProfile.role)
-          
-        case 'impersonation':
+          return ["superadmin", "admin", "csm"].includes(userProfile.role);
+
+        case "impersonation":
           // Superadmin: All impersonations, full control
           // Admin: Can see only his impersonation, not even other admins
           // CSM: No access
-          return ['superadmin', 'admin'].includes(userProfile.role)
-          
-        case 'settings':
+          return ["superadmin", "admin"].includes(userProfile.role);
+
+        case "settings":
           // Superadmin: Only SA can see this settings of admins and actions
           // Admin: No access
           // CSM: No access
-          return userProfile.role === 'superadmin'
-          
-        default:
-          return true
-      }
-    })
-  }
+          return userProfile.role === "superadmin";
 
-  const activeView = getActiveKey(location.pathname)
-  const filteredMenuItems = getFilteredMenuItems()
+        default:
+          return true;
+      }
+    });
+  };
+
+  const activeView = getActiveKey(location.pathname);
+  const filteredMenuItems = getFilteredMenuItems();
 
   const handleNavigation = (path: string) => {
-    navigate(path)
-  }
+    navigate(path);
+  };
 
   return (
     <Sidebar className="border-r">
       <SidebarHeader className="border-b border-sidebar-border">
-        <div 
+        <div
           className="flex items-center gap-3 px-4 py-6 cursor-pointer hover:bg-sidebar-accent/50 transition-colors rounded-md mx-2"
           onClick={() => navigate("/")}
         >
@@ -238,12 +310,16 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
             <Shield className="w-6 h-6 text-primary-foreground" />
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sidebar-foreground">Framtt Admin</span>
-            <span className="text-xs text-sidebar-foreground/60">Superadmin Dashboard</span>
+            <span className="font-semibold text-sidebar-foreground">
+              Framtt Admin
+            </span>
+            <span className="text-xs text-sidebar-foreground/60">
+              Superadmin Dashboard
+            </span>
           </div>
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent className="px-2 py-4">
         <SidebarGroup>
           <SidebarGroupLabel className="px-3 py-2 text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wider">
@@ -253,17 +329,21 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
             <SidebarMenu className="space-y-1">
               {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton 
+                  <SidebarMenuButton
                     onClick={() => handleNavigation(item.path)}
                     className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-sidebar-accent cursor-pointer ${
-                      activeView === item.key 
-                        ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" 
+                      activeView === item.key
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                         : "text-sidebar-foreground hover:text-sidebar-accent-foreground"
                     }`}
                   >
-                    <item.icon className={`w-5 h-5 ${
-                      activeView === item.key ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/70"
-                    }`} />
+                    <item.icon
+                      className={`w-5 h-5 ${
+                        activeView === item.key
+                          ? "text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground/70"
+                      }`}
+                    />
                     <span className="font-medium">{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -277,16 +357,19 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
       <div className="mt-auto border-t border-sidebar-border p-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full justify-start gap-3 px-0 hover:bg-sidebar-accent">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3 px-0 hover:bg-sidebar-accent"
+            >
               <div className="flex items-center justify-center w-8 h-8 bg-sidebar-accent rounded-full">
                 <User className="w-4 h-4 text-sidebar-foreground" />
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-sm font-medium text-sidebar-foreground">
-                  {userProfile?.full_name || 'John Smith'}
+                  {userProfile?.full_name || "John Smith"}
                 </span>
                 <span className="text-xs text-sidebar-foreground/60">
-                  {userProfile?.email || 'john@framtt.com'}
+                  {userProfile?.email || "john@framtt.com"}
                 </span>
               </div>
             </Button>
@@ -301,27 +384,30 @@ function AppSidebar({ onProfileClick, onAccountPreferences, onLogoutClick }: {
               Account Preferences
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onLogoutClick} className="text-destructive">
+            <DropdownMenuItem
+              onClick={onLogoutClick}
+              className="text-destructive"
+            >
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
+
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
 
 function DashboardContent() {
-  const [showNotifications, setShowNotifications] = useState(false)
-  const [notificationsList, setNotificationsList] = useState(notifications)
-  const [showProfileSettings, setShowProfileSettings] = useState(false)
-  const [showAccountPreferences, setShowAccountPreferences] = useState(false)
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
-  
-  const { userProfile, signOut } = useAuth()
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationsList, setNotificationsList] = useState(notifications);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showAccountPreferences, setShowAccountPreferences] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  const { userProfile, signOut } = useAuth();
 
   // Profile Settings State
   const [profileData, setProfileData] = useState({
@@ -330,8 +416,8 @@ function DashboardContent() {
     phone: "",
     department: "",
     role: "",
-    bio: ""
-  })
+    bio: "",
+  });
 
   // Update profile data when userProfile changes
   useEffect(() => {
@@ -342,10 +428,10 @@ function DashboardContent() {
         phone: userProfile.phone || "",
         department: userProfile.department || "",
         role: userProfile.role || "",
-        bio: userProfile.bio || ""
-      })
+        bio: userProfile.bio || "",
+      });
     }
-  }, [userProfile])
+  }, [userProfile]);
 
   // Account Preferences State
   const [preferences, setPreferences] = useState({
@@ -357,8 +443,8 @@ function DashboardContent() {
     sessionTimeout: "8",
     language: "en",
     timezone: "America/New_York",
-    theme: "light"
-  })
+    theme: "light",
+  });
 
   // Update preferences when userProfile changes
   useEffect(() => {
@@ -372,62 +458,64 @@ function DashboardContent() {
         sessionTimeout: userProfile.preferences.sessionTimeout ?? "8",
         language: userProfile.preferences.language ?? "en",
         timezone: userProfile.preferences.timezone ?? "America/New_York",
-        theme: userProfile.preferences.theme ?? "light"
-      })
+        theme: userProfile.preferences.theme ?? "light",
+      });
     }
-  }, [userProfile])
+  }, [userProfile]);
 
-  const unreadCount = notificationsList.filter(n => n.unread).length
+  const unreadCount = notificationsList.filter((n) => n.unread).length;
 
   const markAllAsRead = () => {
-    setNotificationsList(prev => prev.map(n => ({ ...n, unread: false })))
-    toast.success("All notifications marked as read")
-  }
+    setNotificationsList((prev) => prev.map((n) => ({ ...n, unread: false })));
+    toast.success("All notifications marked as read");
+  };
 
   const handleProfileClick = () => {
-    setShowProfileSettings(true)
-  }
+    setShowProfileSettings(true);
+  };
 
   const handleAccountPreferences = () => {
-    setShowAccountPreferences(true)
-  }
+    setShowAccountPreferences(true);
+  };
 
   const handleLogoutClick = () => {
-    setShowLogoutDialog(true)
-  }
+    setShowLogoutDialog(true);
+  };
 
   const confirmLogout = async () => {
     try {
-      await signOut()
-      toast.success("Logged out successfully")
-      setShowLogoutDialog(false)
+      await signOut();
+      toast.success("Logged out successfully");
+      setShowLogoutDialog(false);
     } catch (error) {
-      console.error('Logout error:', error)
-      toast.error("Error logging out")
+      console.error("Logout error:", error);
+      toast.error("Error logging out");
     }
-  }
+  };
 
   const handleSaveProfile = () => {
-    toast.success("Profile updated successfully!")
-    setShowProfileSettings(false)
-  }
+    toast.success("Profile updated successfully!");
+    setShowProfileSettings(false);
+  };
 
   const handleSavePreferences = () => {
-    toast.success("Preferences saved successfully!")
-    setShowAccountPreferences(false)
-  }
+    toast.success("Preferences saved successfully!");
+    setShowAccountPreferences(false);
+  };
 
   // Update document title based on current route
-  const location = useLocation()
+  const location = useLocation();
   useEffect(() => {
-    const item = menuItems.find(item => item.path === location.pathname)
-    const title = item ? `${item.title} - Framtt Admin` : "Framtt Admin Dashboard"
-    document.title = title
-  }, [location.pathname])
+    const item = menuItems.find((item) => item.path === location.pathname);
+    const title = item
+      ? `${item.title} - Framtt Admin`
+      : "Framtt Admin Dashboard";
+    document.title = title;
+  }, [location.pathname]);
 
   return (
     <SidebarProvider>
-      <AppSidebar 
+      <AppSidebar
         onProfileClick={handleProfileClick}
         onAccountPreferences={handleAccountPreferences}
         onLogoutClick={handleLogoutClick}
@@ -437,21 +525,27 @@ function DashboardContent() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <BreadcrumbNavigation />
-          
+
           {/* Header Actions */}
           <div className="ml-auto flex items-center gap-2">
-            <Badge variant="outline" className="text-green-600 border-green-600 hidden sm:flex">
+            <Badge
+              variant="outline"
+              className="text-green-600 border-green-600 hidden sm:flex"
+            >
               <Activity className="w-3 h-3 mr-1" />
               All Systems Operational
             </Badge>
-            
+
             {/* Demo Mode Badge */}
             <Badge variant="secondary" className="hidden sm:flex">
               Demo Mode
             </Badge>
-            
+
             {/* Notifications */}
-            <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
+            <DropdownMenu
+              open={showNotifications}
+              onOpenChange={setShowNotifications}
+            >
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="w-4 h-4" />
@@ -473,15 +567,26 @@ function DashboardContent() {
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notificationsList.map((notification) => (
-                    <div key={notification.id} className={`p-3 border-b last:border-b-0 hover:bg-accent cursor-pointer ${notification.unread ? 'bg-accent/50' : ''}`}>
+                    <div
+                      key={notification.id}
+                      className={`p-3 border-b last:border-b-0 hover:bg-accent cursor-pointer ${
+                        notification.unread ? "bg-accent/50" : ""
+                      }`}
+                    >
                       <div className="flex items-start gap-2">
                         {notification.unread && (
                           <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{notification.title}</p>
-                          <p className="text-sm text-muted-foreground">{notification.description}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{notification.time}</p>
+                          <p className="font-medium text-sm">
+                            {notification.title}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {notification.description}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {notification.time}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -504,10 +609,10 @@ function DashboardContent() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">
-                      {userProfile?.full_name || 'John Smith'}
+                      {userProfile?.full_name || "John Smith"}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {userProfile?.email || 'john@framtt.com'}
+                      {userProfile?.email || "john@framtt.com"}
                     </span>
                   </div>
                 </div>
@@ -520,7 +625,10 @@ function DashboardContent() {
                   Account Preferences
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogoutClick} className="text-destructive">
+                <DropdownMenuItem
+                  onClick={handleLogoutClick}
+                  className="text-destructive"
+                >
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
                 </DropdownMenuItem>
@@ -528,12 +636,12 @@ function DashboardContent() {
             </DropdownMenu>
           </div>
         </header>
-        
+
         <main className="flex-1 p-6">
           <div className="flex-1">
             {/* Impersonation Banner */}
             <ImpersonationBanner />
-            
+
             <Routes>
               <Route path="/" element={<OverviewDashboard />} />
               <Route path="/overview" element={<Navigate to="/" replace />} />
@@ -544,7 +652,10 @@ function DashboardContent() {
               <Route path="/monitoring" element={<SystemMonitoring />} />
               <Route path="/payments" element={<PaymentsBilling />} />
               <Route path="/snippets" element={<SnippetManager />} />
-              <Route path="/impersonation-history" element={<ImpersonationHistory />} />
+              <Route
+                path="/impersonation-history"
+                element={<ImpersonationHistory />}
+              />
               <Route path="/settings" element={<AdminSettings />} />
               {/* 404 Not Found route */}
               <Route path="*" element={<NotFound />} />
@@ -553,7 +664,10 @@ function DashboardContent() {
         </main>
 
         {/* Profile Settings Dialog */}
-        <Dialog open={showProfileSettings} onOpenChange={setShowProfileSettings}>
+        <Dialog
+          open={showProfileSettings}
+          onOpenChange={setShowProfileSettings}
+        >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Profile Settings</DialogTitle>
@@ -565,32 +679,52 @@ function DashboardContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
-                  <Input 
+                  <Input
                     id="fullName"
                     value={profileData.fullName}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, fullName: e.target.value }))}
+                    onChange={(e) =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        fullName: e.target.value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input 
+                  <Input
                     id="email"
                     type="email"
                     value={profileData.email}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input 
+                  <Input
                     id="phone"
                     value={profileData.phone}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                    onChange={(e) =>
+                      setProfileData((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Select value={profileData.department} onValueChange={(value) => setProfileData(prev => ({ ...prev, department: value }))}>
+                  <Select
+                    value={profileData.department}
+                    onValueChange={(value) =>
+                      setProfileData((prev) => ({ ...prev, department: value }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -605,7 +739,7 @@ function DashboardContent() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Input 
+                  <Input
                     id="role"
                     value={profileData.role}
                     disabled
@@ -615,10 +749,12 @@ function DashboardContent() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bio">Bio</Label>
-                <Textarea 
+                <Textarea
                   id="bio"
                   value={profileData.bio}
-                  onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
+                  onChange={(e) =>
+                    setProfileData((prev) => ({ ...prev, bio: e.target.value }))
+                  }
                   rows={3}
                 />
               </div>
@@ -626,7 +762,11 @@ function DashboardContent() {
                 <Button onClick={handleSaveProfile} className="flex-1">
                   Save Changes
                 </Button>
-                <Button variant="outline" onClick={() => setShowProfileSettings(false)} className="flex-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowProfileSettings(false)}
+                  className="flex-1"
+                >
                   Cancel
                 </Button>
               </div>
@@ -635,7 +775,10 @@ function DashboardContent() {
         </Dialog>
 
         {/* Account Preferences Dialog */}
-        <Dialog open={showAccountPreferences} onOpenChange={setShowAccountPreferences}>
+        <Dialog
+          open={showAccountPreferences}
+          onOpenChange={setShowAccountPreferences}
+        >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Account Preferences</DialogTitle>
@@ -649,78 +792,125 @@ function DashboardContent() {
                 <TabsTrigger value="security">Security</TabsTrigger>
                 <TabsTrigger value="appearance">Appearance</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="notifications" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>Notification Settings</CardTitle>
-                    <CardDescription>Choose how you want to be notified</CardDescription>
+                    <CardDescription>
+                      Choose how you want to be notified
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Email Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                        <p className="text-sm text-muted-foreground">
+                          Receive notifications via email
+                        </p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={preferences.emailNotifications}
-                        onCheckedChange={(value) => setPreferences(prev => ({ ...prev, emailNotifications: value }))}
+                        onCheckedChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            emailNotifications: value,
+                          }))
+                        }
                       />
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Push Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Browser push notifications</p>
+                        <p className="text-sm text-muted-foreground">
+                          Browser push notifications
+                        </p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={preferences.pushNotifications}
-                        onCheckedChange={(value) => setPreferences(prev => ({ ...prev, pushNotifications: value }))}
+                        onCheckedChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            pushNotifications: value,
+                          }))
+                        }
                       />
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Weekly Reports</Label>
-                        <p className="text-sm text-muted-foreground">Receive weekly system reports</p>
+                        <p className="text-sm text-muted-foreground">
+                          Receive weekly system reports
+                        </p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={preferences.weeklyReports}
-                        onCheckedChange={(value) => setPreferences(prev => ({ ...prev, weeklyReports: value }))}
+                        onCheckedChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            weeklyReports: value,
+                          }))
+                        }
                       />
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Marketing Emails</Label>
-                        <p className="text-sm text-muted-foreground">Product updates and newsletters</p>
+                        <p className="text-sm text-muted-foreground">
+                          Product updates and newsletters
+                        </p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={preferences.marketingEmails}
-                        onCheckedChange={(value) => setPreferences(prev => ({ ...prev, marketingEmails: value }))}
+                        onCheckedChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            marketingEmails: value,
+                          }))
+                        }
                       />
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="security" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>Security Settings</CardTitle>
-                    <CardDescription>Manage your account security</CardDescription>
+                    <CardDescription>
+                      Manage your account security
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <Label>Two-Factor Authentication</Label>
-                        <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+                        <p className="text-sm text-muted-foreground">
+                          Add an extra layer of security
+                        </p>
                       </div>
-                      <Switch 
+                      <Switch
                         checked={preferences.twoFactorAuth}
-                        onCheckedChange={(value) => setPreferences(prev => ({ ...prev, twoFactorAuth: value }))}
+                        onCheckedChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            twoFactorAuth: value,
+                          }))
+                        }
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Session Timeout (hours)</Label>
-                      <Select value={preferences.sessionTimeout} onValueChange={(value) => setPreferences(prev => ({ ...prev, sessionTimeout: value }))}>
+                      <Select
+                        value={preferences.sessionTimeout}
+                        onValueChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            sessionTimeout: value,
+                          }))
+                        }
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -735,17 +925,27 @@ function DashboardContent() {
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="appearance" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle>Appearance Settings</CardTitle>
-                    <CardDescription>Customize the look and feel</CardDescription>
+                    <CardDescription>
+                      Customize the look and feel
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label>Language</Label>
-                      <Select value={preferences.language} onValueChange={(value) => setPreferences(prev => ({ ...prev, language: value }))}>
+                      <Select
+                        value={preferences.language}
+                        onValueChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            language: value,
+                          }))
+                        }
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -759,22 +959,43 @@ function DashboardContent() {
                     </div>
                     <div className="space-y-2">
                       <Label>Timezone</Label>
-                      <Select value={preferences.timezone} onValueChange={(value) => setPreferences(prev => ({ ...prev, timezone: value }))}>
+                      <Select
+                        value={preferences.timezone}
+                        onValueChange={(value) =>
+                          setPreferences((prev) => ({
+                            ...prev,
+                            timezone: value,
+                          }))
+                        }
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                          <SelectItem value="America/Chicago">Central Time</SelectItem>
-                          <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                          <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
+                          <SelectItem value="America/New_York">
+                            Eastern Time
+                          </SelectItem>
+                          <SelectItem value="America/Chicago">
+                            Central Time
+                          </SelectItem>
+                          <SelectItem value="America/Denver">
+                            Mountain Time
+                          </SelectItem>
+                          <SelectItem value="America/Los_Angeles">
+                            Pacific Time
+                          </SelectItem>
                           <SelectItem value="UTC">UTC</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Theme</Label>
-                      <Select value={preferences.theme} onValueChange={(value) => setPreferences(prev => ({ ...prev, theme: value }))}>
+                      <Select
+                        value={preferences.theme}
+                        onValueChange={(value) =>
+                          setPreferences((prev) => ({ ...prev, theme: value }))
+                        }
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -793,7 +1014,11 @@ function DashboardContent() {
               <Button onClick={handleSavePreferences} className="flex-1">
                 Save Preferences
               </Button>
-              <Button variant="outline" onClick={() => setShowAccountPreferences(false)} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={() => setShowAccountPreferences(false)}
+                className="flex-1"
+              >
                 Cancel
               </Button>
             </div>
@@ -806,21 +1031,24 @@ function DashboardContent() {
             <AlertDialogHeader>
               <AlertDialogTitle>Sign Out</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to sign out? You will need to log in again to access the dashboard.
+                Are you sure you want to sign out? You will need to log in again
+                to access the dashboard.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction
+                onClick={confirmLogout}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 Sign Out
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
 
 // Protected Dashboard Routes
@@ -829,7 +1057,7 @@ function ProtectedDashboard() {
     <ProtectedRoute requiredRole="admin">
       <DashboardContent />
     </ProtectedRoute>
-  )
+  );
 }
 
 export default function App() {
@@ -840,11 +1068,11 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
-          
+
           {/* Protected Dashboard Routes */}
           <Route path="/*" element={<ProtectedDashboard />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
-  )
+  );
 }

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { logger } = require('../utils/logger');
 const { requireSuperAdmin } = require('../middleware/auth');
+const pool = require('../config/database');
 
 // All billing routes require superadmin access
 router.use(requireSuperAdmin);
@@ -11,46 +12,63 @@ router.get('/revenue', async (req, res) => {
   try {
     const timeframe = req.query.timeframe || '6months';
     
-    // Mock revenue data based on timeframe
-    const generateRevenueData = (period) => {
-      const data = [];
-      const now = new Date();
-      let periods = 6;
-      let periodName = 'month';
-      
-      switch (period) {
-        case '3months':
-          periods = 3;
-          break;
-        case '12months':
-          periods = 12;
-          break;
-        case '1year':
-          periods = 12;
-          break;
-        default:
-          periods = 6;
+    // Calculate period count based on timeframe
+    let periods = 6;
+    let intervalType = 'month';
+    
+    switch (timeframe) {
+      case '3months':
+        periods = 3;
+        break;
+      case '12months':
+      case '1year':
+        periods = 12;
+        break;
+      default:
+        periods = 6;
+    }
+    
+    // Query revenue data from transactions table
+    const query = `
+      WITH monthly_data AS (
+        SELECT 
+          TO_CHAR(DATE_TRUNC('month', paid_at), 'Mon YY') as period,
+          DATE_TRUNC('month', paid_at) as month_date,
+          SUM(amount) as revenue,
+          COUNT(*) as subscriptions,
+          0 as growth
+        FROM transactions
+        WHERE status = 'completed'
+          AND paid_at IS NOT NULL
+          AND paid_at >= NOW() - INTERVAL '${periods} months'
+        GROUP BY DATE_TRUNC('month', paid_at)
+        ORDER BY month_date ASC
+      )
+      SELECT 
+        period,
+        CAST(revenue AS DECIMAL(10,2)) as revenue,
+        subscriptions,
+        growth
+      FROM monthly_data
+    `;
+    
+    const result = await pool.query(query);
+    
+    // Calculate growth percentage
+    const revenueData = result.rows.map((row, index, arr) => {
+      if (index > 0) {
+        const prevRevenue = parseFloat(arr[index - 1].revenue);
+        const currentRevenue = parseFloat(row.revenue);
+        const growth = prevRevenue > 0 
+          ? (((currentRevenue - prevRevenue) / prevRevenue) * 100).toFixed(1)
+          : '0.0';
+        return { ...row, growth: parseFloat(growth) };
       }
-      
-      for (let i = periods - 1; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-        const revenue = Math.floor(Math.random() * 50000) + 25000; // $25k-$75k
-        
-        data.push({
-          period: monthName,
-          revenue,
-          subscriptions: Math.floor(revenue / 100), // Approximate subscription count
-          growth: ((Math.random() - 0.5) * 20).toFixed(1) // -10% to +10%
-        });
-      }
-      
-      return data;
-    };
-
-    const revenueData = generateRevenueData(timeframe);
-    const totalRevenue = revenueData.reduce((sum, item) => sum + item.revenue, 0);
-    const averageMonthly = Math.floor(totalRevenue / revenueData.length);
+      return { ...row, growth: 0 };
+    });
+    
+    const totalRevenue = revenueData.reduce((sum, item) => sum + parseFloat(item.revenue), 0);
+    const averageMonthly = revenueData.length > 0 ? Math.floor(totalRevenue / revenueData.length) : 0;
 
     logger.info(`Revenue data requested for timeframe: ${timeframe}`);
     res.json({
@@ -59,7 +77,7 @@ router.get('/revenue', async (req, res) => {
         timeframe,
         revenue: revenueData,
         summary: {
-          total: totalRevenue,
+          total: totalRevenue.toFixed(2),
           average: averageMonthly,
           currency: 'USD'
         }
@@ -78,31 +96,61 @@ router.get('/revenue', async (req, res) => {
 // GET /api/billing/subscriptions
 router.get('/subscriptions', async (req, res) => {
   try {
-    // Mock subscription data
+    // Query subscription data from clients/accounts and transactions
+    const statsQuery = `
+      SELECT 
+        COUNT(DISTINCT c.id) FILTER (WHERE c.subscription_status = 'active') as active,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.subscription_status = 'pending') as pending,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.subscription_status = 'cancelled') as cancelled,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.subscription_status = 'expired') as expired
+      FROM clients c
+    `;
+    
+    const planBreakdownQuery = `
+      SELECT 
+        COALESCE(c.subscription_plan, 'Basic') as plan,
+        COUNT(*) as count,
+        SUM(COALESCE(c.subscription_amount, 99)) as revenue
+      FROM clients c
+      WHERE c.subscription_status = 'active'
+      GROUP BY c.subscription_plan
+    `;
+    
+    const churnQuery = `
+      SELECT 
+        CAST(
+          (COUNT(*) FILTER (WHERE subscription_status = 'cancelled' 
+            AND updated_at >= NOW() - INTERVAL '30 days') * 100.0 / 
+          NULLIF(COUNT(*) FILTER (WHERE subscription_status IN ('active', 'cancelled')), 0))
+        AS DECIMAL(5,1)) as churn_rate
+      FROM clients
+    `;
+    
+    const signupsQuery = `
+      SELECT COUNT(*) as recent_signups
+      FROM clients
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+    `;
+    
+    const [statsResult, planResult, churnResult, signupsResult] = await Promise.all([
+      pool.query(statsQuery),
+      pool.query(planBreakdownQuery),
+      pool.query(churnQuery),
+      pool.query(signupsQuery)
+    ]);
+    
     const subscriptions = {
-      active: Math.floor(Math.random() * 500) + 200,
-      pending: Math.floor(Math.random() * 50) + 10,
-      cancelled: Math.floor(Math.random() * 30) + 5,
-      expired: Math.floor(Math.random() * 20) + 2,
-      planBreakdown: [
-        {
-          plan: 'Basic',
-          count: Math.floor(Math.random() * 150) + 50,
-          revenue: Math.floor(Math.random() * 15000) + 5000
-        },
-        {
-          plan: 'Professional',
-          count: Math.floor(Math.random() * 200) + 100,
-          revenue: Math.floor(Math.random() * 40000) + 20000
-        },
-        {
-          plan: 'Enterprise',
-          count: Math.floor(Math.random() * 100) + 30,
-          revenue: Math.floor(Math.random() * 30000) + 15000
-        }
-      ],
-      churnRate: (Math.random() * 5 + 2).toFixed(1), // 2-7%
-      recentSignups: Math.floor(Math.random() * 20) + 5
+      active: parseInt(statsResult.rows[0]?.active || 0),
+      pending: parseInt(statsResult.rows[0]?.pending || 0),
+      cancelled: parseInt(statsResult.rows[0]?.cancelled || 0),
+      expired: parseInt(statsResult.rows[0]?.expired || 0),
+      planBreakdown: planResult.rows.map(row => ({
+        plan: row.plan,
+        count: parseInt(row.count),
+        revenue: parseFloat(row.revenue || 0)
+      })),
+      churnRate: parseFloat(churnResult.rows[0]?.churn_rate || 0).toFixed(1),
+      recentSignups: parseInt(signupsResult.rows[0]?.recent_signups || 0)
     };
 
     logger.info('Subscription data requested');
@@ -125,33 +173,81 @@ router.get('/transactions', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const status = req.query.status;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
 
-    // Mock transaction data
-    const transactions = [];
-    const statuses = ['completed', 'pending', 'failed', 'refunded'];
-    const plans = ['Basic', 'Professional', 'Enterprise'];
+    // Build query with filters
+    let whereConditions = ['1=1'];
+    const queryParams = [];
+    let paramCount = 1;
     
-    for (let i = 0; i < limit; i++) {
-      const randomDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Last 30 days
-      const plan = plans[Math.floor(Math.random() * plans.length)];
-      const baseAmount = plan === 'Basic' ? 29 : plan === 'Professional' ? 99 : 199;
-      
-      transactions.push({
-        id: `txn_${Date.now()}_${i}`,
-        clientId: `client_${Math.floor(Math.random() * 1000)}`,
-        clientName: `Company ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`,
-        amount: baseAmount + Math.floor(Math.random() * 50),
-        currency: 'USD',
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        plan,
-        date: randomDate.toISOString(),
-        paymentMethod: 'Credit Card',
-        transactionId: `stripe_${Math.random().toString(36).substr(2, 9)}`
-      });
+    if (status) {
+      whereConditions.push(`t.status = $${paramCount}`);
+      queryParams.push(status);
+      paramCount++;
+    }
+    
+    if (startDate) {
+      whereConditions.push(`t.created_at >= $${paramCount}`);
+      queryParams.push(startDate);
+      paramCount++;
+    }
+    
+    if (endDate) {
+      whereConditions.push(`t.created_at <= $${paramCount}`);
+      queryParams.push(endDate);
+      paramCount++;
     }
 
-    // Sort by date descending
-    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const query = `
+      SELECT 
+        t.id,
+        t.transaction_id,
+        COALESCE(c.company_name, a.company_name, 'Unknown') as client_name,
+        t.amount,
+        t.currency,
+        t.status,
+        t.plan_type as plan,
+        t.payment_method,
+        t.paid_at as date,
+        t.created_at
+      FROM transactions t
+      LEFT JOIN clients c ON t.client_id = c.id
+      LEFT JOIN accounts a ON t.account_id = a.id
+      WHERE ${whereConditions.join(' AND ')}
+      ORDER BY t.created_at DESC
+      LIMIT $${paramCount} OFFSET $${paramCount + 1}
+    `;
+    
+    queryParams.push(limit, offset);
+    
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM transactions t
+      WHERE ${whereConditions.join(' AND ')}
+    `;
+    
+    const [result, countResult] = await Promise.all([
+      pool.query(query, queryParams),
+      pool.query(countQuery, queryParams.slice(0, -2)) // Remove limit and offset for count
+    ]);
+    
+    const transactions = result.rows.map(row => ({
+      id: row.transaction_id,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      amount: `$${parseFloat(row.amount).toFixed(2)}`,
+      currency: row.currency,
+      status: row.status,
+      plan: row.plan || 'Basic',
+      date: row.date || row.created_at,
+      paymentMethod: row.payment_method || 'Credit Card',
+      transactionId: row.transaction_id
+    }));
+    
+    const total = parseInt(countResult.rows[0]?.total || 0);
 
     logger.info(`Transaction data requested - page ${page}, limit ${limit}`);
     res.json({
@@ -161,8 +257,8 @@ router.get('/transactions', async (req, res) => {
         pagination: {
           page,
           limit,
-          total: 500, // Mock total count
-          pages: Math.ceil(500 / limit)
+          total,
+          pages: Math.ceil(total / limit)
         }
       }
     });
@@ -179,41 +275,53 @@ router.get('/transactions', async (req, res) => {
 // GET /api/billing/renewals
 router.get('/renewals', async (req, res) => {
   try {
-    // Mock upcoming renewals data
-    const renewals = [];
+    // Query upcoming renewals from subscription_renewals table
+    const query = `
+      SELECT 
+        sr.id,
+        COALESCE(c.company_name, a.company_name, 'Unknown') as company_name,
+        c.id as client_id,
+        sr.plan_type as plan,
+        sr.amount,
+        sr.currency,
+        sr.renewal_date,
+        sr.status,
+        sr.auto_renewal,
+        EXTRACT(DAY FROM (sr.renewal_date - NOW())) as days_until
+      FROM subscription_renewals sr
+      LEFT JOIN clients c ON sr.client_id = c.id
+      LEFT JOIN accounts a ON sr.account_id = a.id
+      WHERE sr.renewal_date >= NOW()
+        AND sr.status IN ('upcoming', 'at_risk', 'confirmed')
+      ORDER BY sr.renewal_date ASC
+      LIMIT 20
+    `;
     
-    for (let i = 0; i < 15; i++) {
-      const futureDate = new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000); // Next 30 days
-      const plans = ['Basic', 'Professional', 'Enterprise'];
-      const plan = plans[Math.floor(Math.random() * plans.length)];
-      const baseAmount = plan === 'Basic' ? 29 : plan === 'Professional' ? 99 : 199;
-      
-      renewals.push({
-        id: `renewal_${Date.now()}_${i}`,
-        clientId: `client_${Math.floor(Math.random() * 1000)}`,
-        clientName: `Company ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`,
-        plan,
-        amount: baseAmount,
-        currency: 'USD',
-        renewalDate: futureDate.toISOString(),
-        status: Math.random() > 0.8 ? 'at_risk' : 'confirmed',
-        autoRenewal: Math.random() > 0.2
-      });
-    }
+    const result = await pool.query(query);
+    
+    const renewals = result.rows.map(row => ({
+      id: `renewal_${row.id}`,
+      clientId: row.client_id,
+      clientName: row.company_name,
+      plan: row.plan,
+      amount: `$${parseFloat(row.amount).toFixed(2)}`,
+      currency: row.currency,
+      renewalDate: row.renewal_date,
+      status: row.status,
+      autoRenewal: row.auto_renewal,
+      daysUntil: Math.ceil(row.days_until)
+    }));
 
-    // Sort by renewal date ascending
-    renewals.sort((a, b) => new Date(a.renewalDate) - new Date(b.renewalDate));
-
-    logger.info('Upcoming renewals requested');
+    logger.info('Renewal data requested');
     res.json({
       success: true,
       data: renewals
     });
   } catch (error) {
-    logger.error('Error fetching renewals data:', error);
+    logger.error('Error fetching renewal data:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch renewals data',
+      message: 'Failed to fetch renewal data',
       error: error.message
     });
   }
@@ -222,38 +330,39 @@ router.get('/renewals', async (req, res) => {
 // GET /api/billing/failed-payments
 router.get('/failed-payments', async (req, res) => {
   try {
-    // Mock failed payments data
-    const failedPayments = [];
-    const reasons = [
-      'Insufficient funds',
-      'Card expired',
-      'Payment declined',
-      'Invalid card number',
-      'Card blocked'
-    ];
+    // Query failed payments from failed_payments table
+    const query = `
+      SELECT 
+        fp.id,
+        COALESCE(c.company_name, a.company_name, 'Unknown') as company_name,
+        c.id as client_id,
+        fp.amount,
+        fp.currency,
+        fp.reason,
+        fp.attempt_count as attempts,
+        fp.last_attempt_at as attempt_date,
+        fp.next_attempt_at as next_attempt,
+        fp.created_at as date
+      FROM failed_payments fp
+      LEFT JOIN clients c ON fp.client_id = c.id
+      LEFT JOIN accounts a ON fp.account_id = a.id
+      WHERE fp.resolved = false
+      ORDER BY fp.last_attempt_at DESC
+      LIMIT 20
+    `;
     
-    for (let i = 0; i < 8; i++) {
-      const failureDate = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Last 7 days
-      const plans = ['Basic', 'Professional', 'Enterprise'];
-      const plan = plans[Math.floor(Math.random() * plans.length)];
-      const baseAmount = plan === 'Basic' ? 29 : plan === 'Professional' ? 99 : 199;
-      
-      failedPayments.push({
-        id: `failed_${Date.now()}_${i}`,
-        clientId: `client_${Math.floor(Math.random() * 1000)}`,
-        clientName: `Company ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`,
-        amount: baseAmount,
-        currency: 'USD',
-        plan,
-        failureDate: failureDate.toISOString(),
-        reason: reasons[Math.floor(Math.random() * reasons.length)],
-        retryAttempts: Math.floor(Math.random() * 3) + 1,
-        nextRetry: new Date(failureDate.getTime() + 24 * 60 * 60 * 1000).toISOString()
-      });
-    }
-
-    // Sort by failure date descending
-    failedPayments.sort((a, b) => new Date(b.failureDate) - new Date(a.failureDate));
+    const result = await pool.query(query);
+    
+    const failedPayments = result.rows.map(row => ({
+      id: `FP${String(row.id).padStart(3, '0')}`,
+      company: row.company_name,
+      amount: `$${parseFloat(row.amount).toFixed(2)}`,
+      reason: row.reason,
+      date: row.date,
+      attempts: row.attempts,
+      attemptDate: row.attempt_date,
+      nextAttempt: row.next_attempt
+    }));
 
     logger.info('Failed payments requested');
     res.json({
